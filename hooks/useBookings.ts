@@ -485,7 +485,8 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
             } else {
                 // Existing Group: Partial updates to avoid overwriting other potential fields
                 updates[`groups/${groupId}/customer`] = customer;
-                updates[`groups/${groupId}/payment`] = payment;
+                updates[`groups/${groupId}/payment/depositMethod`] = payment.depositMethod;
+                updates[`groups/${groupId}/payment/transactionId`] = payment.transactionId;
                 updates[`groups/${groupId}/updatedAt`] = timestamp;
             }
         }
