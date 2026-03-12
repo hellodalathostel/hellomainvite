@@ -63,13 +63,6 @@ if ('serviceWorker' in navigator) {
       .catch((error) => {
         console.log('Service Worker registration failed:', error);
       });
-
-    // Handle messages from service worker
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data && event.data.type === 'SYNC_DATA') {
-        console.log('Service worker requested data sync');
-      }
-    });
   });
 
   // Detect online/offline status
