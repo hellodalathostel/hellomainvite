@@ -1,4 +1,4 @@
-import { Booking, Discount, Expense, Guest, PropertyInfo, Service } from './types';
+import type { Booking, Discount, Expense, Guest, PropertyInfo, Service } from './types';
 
 export type SuggestedGuest = {
   guestName?: string;

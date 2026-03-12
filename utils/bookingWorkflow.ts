@@ -1,5 +1,5 @@
 import { getDaysDiff } from './utils';
-import { BookingFormData, SaveBookingPayload } from '../types/bookingForm';
+import type { BookingFormData, SaveBookingPayload } from '../types/bookingForm';
 export const resolveRoomsToCheck = (form: BookingFormData, isGroupMode: boolean): string[] => {
   return isGroupMode && !form.id ? form.selectedRooms : [form.roomId];
 };
