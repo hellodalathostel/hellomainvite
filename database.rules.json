@@ -1,8 +1,7 @@
 {
   "rules": {
-    ".read": "auth != null",
-
     "bookings": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'staff')",
       ".indexOn": ["checkIn", "checkOut", "roomId", "createdAt", "phone", "otaBookingNumber", "groupId", "isDeleted"],
       "$bookingId": {
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || (root.child('users').child(auth.uid).child('role').val() === 'staff' && newData.exists() && (data.exists() || !newData.hasChild('paid')) && (!data.exists() || !newData.hasChild('paid') || newData.child('paid').val() === data.child('paid').val()) && newData.child('status').val() !== 'cancelled'))"
@@ -10,15 +9,17 @@
     },
 
     "groups": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'staff')",
       "$groupId": {
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || (root.child('users').child(auth.uid).child('role').val() === 'staff' && newData.exists() && (data.exists() || !newData.child('payment').hasChild('paid')) && (!data.exists() || !newData.child('payment').hasChild('paid') || newData.child('payment/paid').val() === data.child('payment/paid').val()) && newData.child('status').val() !== 'cancelled'))"
       }
     },
 
     "expenses": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'staff')",
       ".indexOn": ["date", "isDeleted"],
       "$expenseId": {
-        ".write": "auth != null"
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'staff')"
       }
     },
 
@@ -26,7 +27,7 @@
       ".read": "root.child('users').child(auth.uid).child('role').val() === 'owner'",
       ".indexOn": ["timestamp"],
       "$logId": {
-        ".write": "auth != null && !data.exists()"
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'staff') && !data.exists()"
       }
     },
 
@@ -38,13 +39,24 @@
     },
 
     "rooms": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'staff')",
       ".write": "root.child('users').child(auth.uid).child('role').val() === 'owner'"
     },
     "services": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'staff')",
       ".write": "root.child('users').child(auth.uid).child('role').val() === 'owner'"
     },
     "app_data": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'staff')",
       ".write": "root.child('users').child(auth.uid).child('role').val() === 'owner'"
+    },
+    "customers": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'staff')",
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'staff')"
+    },
+    "customerUsage": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'staff')",
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'staff')"
     }
   }
 }
