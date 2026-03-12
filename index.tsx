@@ -54,9 +54,7 @@ if ('serviceWorker' in navigator) {
         // Request background sync for offline data
         if (hasSyncManager(registration)) {
           window.addEventListener('online', () => {
-            registration.sync.register('bookings-sync')
-              .then(() => console.log('Background sync registered'))
-              .catch((err) => console.log('Sync registration failed:', err));
+            registration.sync.register('bookings-sync');
           });
         }
       })
