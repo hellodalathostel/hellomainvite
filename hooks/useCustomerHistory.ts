@@ -176,6 +176,22 @@ export const useCustomerHistory = () => {
     }
   };
 
+  // Memoized phone to customer map for O(1) lookups
+  const customerByPhoneMap = useMemo(() => {
+    const map = new Map<string, CustomerRecord>();
+    customers.forEach(c => {
+      if (c.phone) {
+        map.set(c.phone, c);
+      }
+    });
+    return map;
+  }, [customers]);
+
+  // Get customer by phone (efficient lookup)
+  const getCustomerByPhone = useCallback((phone: string): CustomerRecord | undefined => {
+    return customerByPhoneMap.get(phone);
+  }, [customerByPhoneMap]);
+
   // Search customer by phone or name (with pagination)
   const searchCustomer = (query: string, limit: number = 20): CustomerRecord[] => {
     if (!query.trim()) return customers.slice(0, limit);
@@ -196,7 +212,7 @@ export const useCustomerHistory = () => {
   // Find or create customer from guest info
   const findOrCreateCustomer = async (name: string, phone: string, cccd?: string, source?: string, note?: string): Promise<CustomerRecord> => {
     // Search existing by phone
-    const existing = customers.find(c => c.phone === phone);
+    const existing = getCustomerByPhone(phone);
     if (existing) {
       return existing;
     }
@@ -227,6 +243,10 @@ export const useCustomerHistory = () => {
     let synced = 0;
     
     try {
+      // Create a lookup map for better performance O(N)
+      // We initialize from the memoized map to avoid redundant iterations
+      const customerMap = new Map<string, CustomerRecord>(customerByPhoneMap);
+
       for (const booking of bookings) {
         // Skip deleted or cancelled bookings
         if (booking.isDeleted || booking.status === 'cancelled') {
@@ -236,8 +256,8 @@ export const useCustomerHistory = () => {
         const phone = booking.phone?.trim();
         if (!phone) continue;
 
-        // Check if customer exists
-        const existing = customers.find(c => c.phone === phone);
+        // Check if customer exists - O(1) lookup
+        const existing = customerMap.get(phone);
 
         if (existing) {
           // Update existing customer if new info has cccd or better source
@@ -261,10 +281,16 @@ export const useCustomerHistory = () => {
           }
 
           if (needsUpdate) {
-            await saveCustomer({
-              id: existing.id,
+            const updatedCustomer = {
               ...existing,
               ...updates,
+            };
+            await saveCustomer(updatedCustomer);
+
+            // Update map to reflect changes for subsequent bookings in the same sync
+            customerMap.set(phone, {
+              ...updatedCustomer,
+              updatedAt: now()
             });
             synced++;
           }
@@ -272,13 +298,24 @@ export const useCustomerHistory = () => {
           // Create new customer from booking
           const cccd = booking.guests && booking.guests.length > 0 ? booking.guests[0].cccd : '';
           
-          await saveCustomer({
+          const newCustomerData = {
             name: booking.guestName || 'Unknown',
             phone,
             cccd,
             source: booking.source,
             note: booking.note,
-          });
+          };
+
+          const newId = await saveCustomer(newCustomerData);
+
+          // Add to map so we don't create it again if another booking has the same phone
+          const newCustomer: CustomerRecord = {
+            ...newCustomerData,
+            id: newId,
+            createdAt: now(),
+            updatedAt: now(),
+          };
+          customerMap.set(phone, newCustomer);
           synced++;
         }
       }
@@ -302,6 +339,7 @@ export const useCustomerHistory = () => {
     getCustomerUsage,
     getAllUsage,
     searchCustomer,
+    getCustomerByPhone,
     findOrCreateCustomer,
     syncCustomersFromBookings,
   };
