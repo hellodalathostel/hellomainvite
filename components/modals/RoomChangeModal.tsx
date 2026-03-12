@@ -127,7 +127,7 @@ const RoomChangeModal: React.FC<RoomChangeModalProps> = ({
   const filteredRooms = rooms.filter(r => r.id !== booking.roomId); // Exclude current room
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center px-4 pt-4 pb-safe-modal backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden animate-in zoom-in duration-200">
         
         {/* Header */}

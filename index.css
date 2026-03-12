@@ -17,6 +17,11 @@ body {
   -webkit-touch-callout: none;
 }
 
+  body {
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+  }
+
 /* Optimize for mobile - disable unnecessary animations */
 @media (prefers-reduced-motion: reduce) {
   * {
@@ -34,7 +39,7 @@ body {
   }
   input, textarea, select {
     min-height: 44px;
-    font-size: 16px;
+    font-size: 16px !important;
   }
 }
 
@@ -67,6 +72,13 @@ input, textarea {
   touch-action: manipulation;
 }
 
+  /* iOS momentum scrolling for all overflow containers */
+  .overflow-y-auto, .overflow-y-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    scroll-padding-bottom: 80px;
+  }
+
 /* Print styles */
 @media print {
   @page { margin: 0; }
@@ -82,6 +94,11 @@ input, textarea {
 .pt-safe-area {
   padding-top: env(safe-area-inset-top);
 }
+
+  /* Safe area for modal overlays — prevents home indicator overlap */
+  .pb-safe-modal {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
 
 /* Prevent zoom on focus - iOS */
 input:focus, textarea:focus, select:focus {

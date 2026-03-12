@@ -76,7 +76,7 @@ Cảm ơn bạn đã lựa chọn ${propertyInfo.name}! ❤️`;
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4 backdrop-blur-md">
+     <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center px-4 pt-4 pb-safe-modal backdrop-blur-md">
       <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in duration-300">
         
         {/* Actions Header - Hidden on Print */}

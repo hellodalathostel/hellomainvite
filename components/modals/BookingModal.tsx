@@ -294,7 +294,7 @@ export default function BookingModal({
 
         {/* Save button */}
         {!isLocked && !confirmDelete && (
-          <div className="p-3 bg-white dark:bg-slate-950 border-t dark:border-slate-800 shrink-0 z-20">
+            <div className="px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-white dark:bg-slate-950 border-t dark:border-slate-800 shrink-0 z-20">
             <button onClick={handleSubmit} className="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white rounded-2xl font-black text-sm shadow-lg shadow-blue-600/20 transition-colors">
               Lưu Booking
             </button>
