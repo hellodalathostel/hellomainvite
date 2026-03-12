@@ -1,0 +1,50 @@
+{
+  "rules": {
+    ".read": "auth != null",
+
+    "bookings": {
+      ".indexOn": ["checkIn", "checkOut", "roomId", "createdAt", "phone", "otaBookingNumber", "groupId", "isDeleted"],
+      "$bookingId": {
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || (root.child('users').child(auth.uid).child('role').val() === 'staff' && newData.exists() && (data.exists() || !newData.hasChild('paid')) && (!data.exists() || !newData.hasChild('paid') || newData.child('paid').val() === data.child('paid').val()) && newData.child('status').val() !== 'cancelled'))"
+      }
+    },
+
+    "groups": {
+      "$groupId": {
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || (root.child('users').child(auth.uid).child('role').val() === 'staff' && newData.exists() && (data.exists() || !newData.child('payment').hasChild('paid')) && (!data.exists() || !newData.child('payment').hasChild('paid') || newData.child('payment/paid').val() === data.child('payment/paid').val()) && newData.child('status').val() !== 'cancelled'))"
+      }
+    },
+
+    "expenses": {
+      ".indexOn": ["date", "isDeleted"],
+      "$expenseId": {
+        ".write": "auth != null"
+      }
+    },
+
+    "audit_logs": {
+      ".read": "root.child('users').child(auth.uid).child('role').val() === 'owner'",
+      ".indexOn": ["timestamp"],
+      "$logId": {
+        ".write": "auth != null && !data.exists()"
+      }
+    },
+
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'owner'",
+        ".write": "root.child('users').child(auth.uid).child('role').val() === 'owner'"
+      }
+    },
+
+    "rooms": {
+      ".write": "root.child('users').child(auth.uid).child('role').val() === 'owner'"
+    },
+    "services": {
+      ".write": "root.child('users').child(auth.uid).child('role').val() === 'owner'"
+    },
+    "app_data": {
+      ".write": "root.child('users').child(auth.uid).child('role').val() === 'owner'"
+    }
+  }
+}

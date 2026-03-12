@@ -1,0 +1,5 @@
+{
+  "name": "Hello Main ",
+  "description": "Offline-first hostel management application for tracking bookings, guests, expenses, and reporting.",
+  "requestFramePermissions": []
+}
