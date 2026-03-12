@@ -9,12 +9,10 @@ export const useSyncOnline = () => {
 
   useEffect(() => {
     const handleOnline = () => {
-      console.log('App online - Firebase listeners will auto-sync');
       setIsOnline(true);
     };
 
     const handleOffline = () => {
-      console.log('App offline');
       setIsOnline(false);
     };
 
