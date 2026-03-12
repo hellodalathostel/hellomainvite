@@ -11,7 +11,7 @@
 
     "groups": {
       "$groupId": {
-        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || (root.child('users').child(auth.uid).child('role').val() === 'staff' && newData.exists() && (data.exists() || !newData.child('payment').hasChild('paid')) && (!data.exists() || !newData.child('payment').hasChild('paid') || newData.child('payment/paid').val() === data.child('payment/paid').val()) && newData.child('status').val() !== 'cancelled'))"
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || (root.child('users').child(auth.uid).child('role').val() === 'staff' && newData.exists() && (data.exists() || newData.child('payment/paid').val() === 0) && (!data.exists() || !newData.child('payment').hasChild('paid') || newData.child('payment/paid').val() === data.child('payment/paid').val()) && newData.child('status').val() !== 'cancelled'))"
       }
     },
 
