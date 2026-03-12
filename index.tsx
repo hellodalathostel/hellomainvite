@@ -46,7 +46,6 @@ if ('serviceWorker' in navigator) {
           newWorker?.addEventListener('statechange', () => {
             if (newWorker.state === 'activated') {
               // New version available
-              console.log('New app version available');
             }
           });
         });
