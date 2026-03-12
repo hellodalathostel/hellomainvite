@@ -56,13 +56,11 @@ if ('serviceWorker' in navigator) {
           window.addEventListener('online', () => {
             registration.sync.register('bookings-sync')
               .then(() => console.log('Background sync registered'))
-              .catch((err) => console.log('Sync registration failed:', err));
+              .catch(() => {});
           });
         }
       })
-      .catch((error) => {
-        console.log('Service Worker registration failed:', error);
-      });
+      .catch(() => {});
 
     // Handle messages from service worker
     navigator.serviceWorker.addEventListener('message', (event) => {
