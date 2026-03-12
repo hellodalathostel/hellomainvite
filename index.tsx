@@ -72,12 +72,4 @@ if ('serviceWorker' in navigator) {
     });
   });
 
-  // Detect online/offline status
-  window.addEventListener('online', () => {
-    console.log('App is online - syncing data');
-  });
-
-  window.addEventListener('offline', () => {
-    console.log('App is offline');
-  });
 }
