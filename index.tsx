@@ -55,8 +55,7 @@ if ('serviceWorker' in navigator) {
         if (hasSyncManager(registration)) {
           window.addEventListener('online', () => {
             registration.sync.register('bookings-sync')
-              .then(() => console.log('Background sync registered'))
-              .catch((err) => console.log('Sync registration failed:', err));
+              .catch((err) => console.error('Sync registration failed:', err));
           });
         }
       })
