@@ -429,7 +429,6 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
         groupId = crypto.randomUUID();
         isMigration = true;
         updates[`bookings/${data.id}/groupId`] = groupId;
-        console.log(`Auto-migrated booking ${data.id} to group ${groupId}`);
     }
 
     // AUDIT LOGGING - OPTIMIZED: Compare with already-loaded bookings to avoid extra get() call
