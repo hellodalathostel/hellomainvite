@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
-import { ref, onValue, set, update } from "firebase/database";
+import { ref, onValue, set, remove } from "firebase/database";
 import type { User as FirebaseUser } from 'firebase/auth';
 import { db } from '../config/firebaseConfig';
 import { Expense } from '../types/types';
@@ -54,9 +54,8 @@ export const useExpenses = (user: FirebaseUser | null) => {
   };
 
   const deleteExpense = async (id: string) => {
-    // SOFT DELETE
-    await update(ref(db, `expenses/${id}`), { isDeleted: true });
-    logAction('delete_expense', `Xóa giao dịch ${id} (Soft delete)`, id);
+    await remove(ref(db, `expenses/${id}`));
+    logAction('delete_expense', `Xóa vĩnh viễn giao dịch ${id}`, id);
   };
 
   return {

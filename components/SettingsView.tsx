@@ -169,7 +169,7 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                         expenses={expenses}
                         onAdd={() => openExpenseModal()}
                         onEdit={(ex) => openExpenseModal(ex)}
-                        onDelete={(id) => { if(window.confirm('Xóa?')) actions.deleteExpense(id) }}
+                        onDelete={(id) => { if(window.confirm('Xóa vĩnh viễn giao dịch này?')) actions.deleteExpense(id) }}
                     />
                 </div>
             </details>

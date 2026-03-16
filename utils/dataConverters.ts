@@ -67,7 +67,8 @@ export const expenseConverter = {
       date: typeof data.date === 'string' ? data.date : new Date().toISOString().split('T')[0],
       category: typeof data.category === 'string' ? data.category : 'Khác',
       type: data.type === 'income' ? 'income' : 'expense',
-      createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now()
+      createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
+      isDeleted: data.isDeleted === true
     };
   }
 };
