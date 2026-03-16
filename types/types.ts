@@ -60,6 +60,8 @@ export interface DiscountDefinition {
 
 export type UserRole = 'owner' | 'staff';
 
+export type AppTab = 'dashboard' | 'calendar' | 'generated' | 'reports' | 'settings';
+
 export interface User {
   uid?: string;
   email: string;
@@ -204,6 +206,11 @@ export interface ToastMessage {
   message: string;
   type: 'success' | 'error' | 'info';
   duration?: number;
+}
+
+export interface BookingWarning {
+  type: 'info' | 'error';
+  msg: string;
 }
 
 export interface AuditLog {

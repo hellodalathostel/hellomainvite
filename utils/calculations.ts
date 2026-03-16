@@ -5,6 +5,22 @@ import { getDaysDiff, formatDate, formatCurrency } from './utils.ts';
 export const CARD_FEE_RATE = 0.04;
 export const CARD_FEE_SERVICE_NAME = 'Phí quẹt thẻ (4%)';
 
+type BookingFinancialInput = Pick<Booking, 'services' | 'discounts' | 'surcharge' | 'paymentMethod'>;
+
+type BookingTotalInput = {
+  id?: string;
+  selectedRooms?: string[];
+  roomDates?: Record<string, { checkIn: string; checkOut: string }>;
+  checkIn?: string;
+  checkOut?: string;
+  price?: number;
+  paid?: number;
+  paymentMethod?: Booking['paymentMethod'];
+  services?: Booking['services'];
+  discounts?: Booking['discounts'];
+  surcharge?: number;
+};
+
 export const calculateCardServiceFee = (amount: number) => {
   return Math.round(Math.max(0, amount) * CARD_FEE_RATE);
 };
@@ -15,20 +31,20 @@ export const normalizeMoneyAmount = (value: number | undefined) => {
   return Math.max(0, normalized);
 };
 
-export const getBookingServiceTotal = (booking: Pick<Booking, 'services'> | Partial<Booking>) =>
+export const getBookingServiceTotal = (booking: Pick<Booking, 'services'> | BookingFinancialInput | BookingTotalInput) =>
   (booking.services || []).reduce((sum, service) => {
     const unitPrice = normalizeMoneyAmount(service.price);
     const qty = normalizeMoneyAmount(service.qty);
     return sum + Math.round(unitPrice * qty);
   }, 0);
 
-export const getBookingDiscountTotal = (booking: Pick<Booking, 'discounts'> | Partial<Booking>) =>
+export const getBookingDiscountTotal = (booking: Pick<Booking, 'discounts'> | BookingFinancialInput | BookingTotalInput) =>
   (booking.discounts || []).reduce((sum, discount) => sum + Math.round(normalizeMoneyAmount(discount.amount)), 0);
 
-export const hasCardFeeService = (booking: Pick<Booking, 'services'> | Partial<Booking>) =>
+export const hasCardFeeService = (booking: Pick<Booking, 'services'> | BookingFinancialInput | BookingTotalInput) =>
   (booking.services || []).some(service => service.name === CARD_FEE_SERVICE_NAME);
 
-export const getEffectiveBookingSurcharge = (booking: Pick<Booking, 'services' | 'surcharge'> | Partial<Booking>) =>
+export const getEffectiveBookingSurcharge = (booking: Pick<Booking, 'services' | 'surcharge'> | BookingFinancialInput | BookingTotalInput) =>
   hasCardFeeService(booking) ? 0 : Math.round(normalizeMoneyAmount(booking.surcharge));
 
 interface CalculationResult {
@@ -51,7 +67,7 @@ interface BillResult {
 }
 
 export const calculateBookingTotal = (
-  booking: Partial<Booking>,
+  booking: BookingTotalInput,
   rooms: RoomDefinition[],
   isGroupMode: boolean = false,
   groupPrices: Record<string, number> = {}

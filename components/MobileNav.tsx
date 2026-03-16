@@ -1,11 +1,12 @@
 
 import React from 'react';
 import { LayoutDashboard, CalendarDays, PieChart, Plus, Settings, MessageSquare } from 'lucide-react';
+import { AppTab } from '../types/types';
 import { useUI } from '../context/UIContext';
 
 interface MobileNavProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
+  activeTab: AppTab;
+  setActiveTab: (tab: AppTab) => void;
   openBookingModal: () => void;
 }
 

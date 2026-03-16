@@ -1,6 +1,6 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import { Booking, Expense, InvoiceData, ConfirmationData, ToastMessage, BeforeInstallPromptEvent } from '../types/types';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
+import { AppTab, Booking, Expense, InvoiceData, ConfirmationData, ToastMessage, BeforeInstallPromptEvent } from '../types/types';
 
 type ModalDataByType = {
   booking: Partial<Booking> | null;
@@ -22,8 +22,8 @@ type ModalState =
 interface UIContextType {
   isDarkMode: boolean;
   toggleTheme: () => void;
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
+  activeTab: AppTab;
+  setActiveTab: (tab: AppTab) => void;
   searchInput: string;
   setSearchInput: (val: string) => void;
   activeSearchTerm: string;
@@ -47,8 +47,9 @@ interface UIContextType {
 const UIContext = createContext<UIContextType | undefined>(undefined);
 
 export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const toastTimeoutsRef = useRef<number[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState<AppTab>('dashboard');
   const [searchInput, setSearchInput] = useState('');
   const [activeSearchTerm, setActiveSearchTerm] = useState('');
   const [modalState, setModalState] = useState<ModalState>({ type: null, data: null });
@@ -79,6 +80,13 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  useEffect(() => {
+    return () => {
+      toastTimeoutsRef.current.forEach(timeoutId => window.clearTimeout(timeoutId));
+      toastTimeoutsRef.current = [];
+    };
+  }, []);
 
   const toggleTheme = useCallback(() => setIsDarkMode(prev => !prev), []);
 
@@ -117,17 +125,18 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const openInvoiceModal = useCallback((data: InvoiceData) => openModal('invoice', data), [openModal]);
   const openConfirmationModal = useCallback((data: ConfirmationData) => openModal('confirmation', data), [openModal]);
 
-  const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    const id = Date.now().toString();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      removeToast(id);
-    }, 3000);
-  }, []);
-
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
+
+  const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, message, type }]);
+    const timeoutId = window.setTimeout(() => {
+      removeToast(id);
+    }, 3000);
+    toastTimeoutsRef.current.push(timeoutId);
+  }, [removeToast]);
 
   const value = useMemo(() => ({
     isDarkMode, toggleTheme,

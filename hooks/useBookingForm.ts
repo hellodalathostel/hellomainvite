@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Booking, RoomDefinition, ServiceDefinition, DiscountDefinition, UserRole } from '../types/types';
+import { Booking, BookingWarning, RoomDefinition, UserRole } from '../types/types';
 import { BookingFormData, SaveBookingPayload } from '../types/bookingForm';
 import { calculateBookingTotal } from '../utils/calculations';
 import { createInitialBookingForm } from '../utils/bookingForm';
@@ -42,7 +42,7 @@ export function useBookingForm({
     }
   }, [form.roomId, isGroupMode, editingBooking?.id, rooms]);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
   const isLocked = userRole === 'staff' && !!form.id && form.checkOut < today;
   const showDesktopActionColumn = !!(form.id && !isLocked && form.status !== 'cancelled' && form.status !== 'checked-out');
 
@@ -71,7 +71,7 @@ export function useBookingForm({
   );
 
   const warnings = useMemo(() => {
-    const list: Array<{ type: 'info' | 'error'; msg: string }> = [];
+    const list: BookingWarning[] = [];
     if (form.groupId && groupPeers.length === 1 && form.id) {
       list.push({ type: 'info', msg: 'Đoàn chỉ còn 1 phòng.' });
     }

@@ -57,7 +57,7 @@ const ReportView = () => {
     roomRevenueByMonth,
     roomRevenueByQuarter,
     roomRevenueByYear,
-  } = useReportAnalytics(reportBookings);
+  } = useReportAnalytics(reportBookings, dateRange.start, dateRange.end);
 
   const stats = useMemo(() => {
     if(!bookings || !expenses) return { 

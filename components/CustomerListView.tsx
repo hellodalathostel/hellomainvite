@@ -26,6 +26,8 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
   const [usageHistory, setUsageHistory] = useState<CustomerUsageRecord[]>([]);
   const [loadingUsage, setLoadingUsage] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'phone' | 'date'>('date');
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
   const [saveError, setSaveError] = useState<string | null>(null);
   const usageCacheRef = useRef<Map<string, CustomerUsageRecord[]>>(new Map());
 
@@ -89,6 +91,16 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
 
     return sorted;
   }, [customers, debouncedSearchQuery, sortBy]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchQuery, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / pageSize));
+  const paginatedCustomers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredCustomers.slice(start, start + pageSize);
+  }, [filteredCustomers, page]);
 
   const handleSaveCustomer = async (customer: Omit<CustomerRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
     try {
@@ -160,7 +172,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
         </div>
         <select
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as any)}
+          onChange={(e) => setSortBy(e.target.value as 'name' | 'phone' | 'date')}
           className="px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white"
         >
           <option value="date">Mới nhất</option>
@@ -200,7 +212,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                {filteredCustomers.map((customer) => (
+                {paginatedCustomers.map((customer) => (
                   <tr
                     key={customer.id}
                     className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer"
@@ -237,6 +249,26 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
           <div className="px-6 py-3 bg-gray-50 dark:bg-slate-700/50 border-t border-gray-200 dark:border-slate-600 text-sm text-gray-700 dark:text-slate-300">
             Tổng cộng: <span className="font-semibold">{filteredCustomers.length}</span> khách hàng
             {searchQuery && ` (tìm thấy ${filteredCustomers.length} trong ${customers.length})`}
+          </div>
+        )}
+
+        {!loading && filteredCustomers.length > pageSize && (
+          <div className="px-6 py-3 border-t border-gray-200 dark:border-slate-600 flex items-center justify-between">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
+            >
+              Trang trước
+            </button>
+            <span className="text-sm text-gray-600 dark:text-slate-300">Trang {page}/{totalPages}</span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
+            >
+              Trang sau
+            </button>
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 
 import { Booking, BookingEntity, GroupEntity, Expense, ServiceDefinition } from '../types/types';
 import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from './calculations';
+import { getDaysDiff } from './utils';
 
 type LegacyBookingFields = {
   guestName?: string;
@@ -24,10 +25,7 @@ export const mergeBookingData = (
     const serviceTotal = getBookingServiceTotal(b);
     const discountTotal = getBookingDiscountTotal(b);
     
-    const d1 = new Date(b.checkIn);
-    const d2 = new Date(b.checkOut);
-    const diffTime = d2.getTime() - d1.getTime();
-    const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+    const nights = getDaysDiff(b.checkIn, b.checkOut);
     const roomCharge = normalizeMoneyAmount(b.price) * nights;
 
     const totalAmount = roomCharge + serviceTotal + getEffectiveBookingSurcharge(b) - discountTotal;

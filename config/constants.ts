@@ -5,9 +5,26 @@ export const PROPERTY_INFO: PropertyInfo = {
   name: "Hello Dalat Hostel",
   address: "33/18/2 Phan Đình Phùng, Phường 1, Đà Lạt",
   phone: "0969 975 935",
+  bankName: 'Vietcombank (VCB)',
+  bankAccountNumber: '1014095502',
+  bankOwner: 'Nguyen Thanh Hieu',
   invoiceHeader: "Cảm ơn quý khách đã lựa chọn dịch vụ của chúng tôi.",
   invoiceFooter: "Hẹn gặp lại quý khách!"
 };
+
+export const DEFAULT_ZALO_TEMPLATE = `🏨 *XÁC NHẬN ĐẶT PHÒNG - HELLO DALAT HOSTEL*
+👤 Khách hàng: {guestName}
+📱 SĐT: {phone}
+📅 Check-in: {checkIn}
+📅 Check-out: {checkOut}
+------------------------------
+💰 Tổng cộng: {total}
+✅ Đã cọc: {deposit}
+👉 Còn lại: {balance}
+------------------------------
+📍 Địa chỉ: 33/18/2 Phan Đình Phùng, Đà Lạt
+🗺 Map: https://maps.app.goo.gl/example
+❤️ Cảm ơn bạn đã lựa chọn Hello Dalat!`;
 
 export const DEFAULT_ROOM_DATA: RoomDefinition[] = [
   { id: '101', name: '101 - Family', price: 450000 },

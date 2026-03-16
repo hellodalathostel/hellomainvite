@@ -3,34 +3,15 @@ import { useState, useEffect } from 'react';
 import { ref, onValue, set, update, remove } from "firebase/database";
 import { db } from '../config/firebaseConfig';
 import { RoomState, ServiceDefinition, PropertyInfo, RoomDefinition, DiscountDefinition } from '../types/types';
-import { DEFAULT_SERVICES, PROPERTY_INFO as DEFAULT_PROPERTY_INFO, DEFAULT_ROOM_DATA, PRESET_DISCOUNTS } from '../config/constants';
+import { DEFAULT_SERVICES, PROPERTY_INFO as DEFAULT_PROPERTY_INFO, DEFAULT_ROOM_DATA, PRESET_DISCOUNTS, DEFAULT_ZALO_TEMPLATE } from '../config/constants';
 
-const DEFAULT_ZALO_TEMPLATE = `🏨 *XÁC NHẬN ĐẶT PHÒNG - HELLO DALAT HOSTEL*
-👤 Khách hàng: {guestName}
-📱 SĐT: {phone}
-📅 Check-in: {checkIn}
-📅 Check-out: {checkOut}
-------------------------------
-💰 Tổng cộng: {total}
-✅ Đã cọc: {deposit}
-👉 Còn lại: {balance}
-------------------------------
-📍 Địa chỉ: 33/18/2 Phan Đình Phùng, Đà Lạt
-🗺 Map: https://maps.app.goo.gl/example
-❤️ Cảm ơn bạn đã lựa chọn Hello Dalat!`;
-
-export const useMasterData = (user: any) => {
+export const useMasterData = (user: { uid: string } | null) => {
   const [roomStates, setRoomStates] = useState<RoomState>({});
   const [masterServices, setMasterServices] = useState<ServiceDefinition[]>(DEFAULT_SERVICES);
   const [masterDiscounts, setMasterDiscounts] = useState<DiscountDefinition[]>([]);
   const [rooms, setRooms] = useState<RoomDefinition[]>(DEFAULT_ROOM_DATA);
   const [zaloTemplate, setZaloTemplate] = useState<string>(DEFAULT_ZALO_TEMPLATE);
-  const [propertyInfo, setPropertyInfo] = useState<PropertyInfo>({
-    ...DEFAULT_PROPERTY_INFO,
-    bankName: 'Vietcombank (VCB)',
-    bankAccountNumber: '1014095502',
-    bankOwner: 'Nguyễn Thanh Hiếu'
-  });
+  const [propertyInfo, setPropertyInfo] = useState<PropertyInfo>(DEFAULT_PROPERTY_INFO);
 
   useEffect(() => {
     if (!user) {

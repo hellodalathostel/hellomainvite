@@ -157,8 +157,13 @@ export const buildDailyAccountingExportRows = (dailyRevenue: DailyRevenueData[])
   }));
 };
 
-export const buildReportAnalytics = (bookings: Booking[]): ReportAnalyticsResult => {
-  const checkedOutBookings = (bookings || []).filter(b => b.status === 'checked-out');
+export const buildReportAnalytics = (bookings: Booking[], startDate?: string, endDate?: string): ReportAnalyticsResult => {
+  const checkedOutBookings = (bookings || []).filter(b => {
+    if (b.status !== 'checked-out') return false;
+    if (startDate && b.checkOut < startDate) return false;
+    if (endDate && b.checkOut > endDate) return false;
+    return true;
+  });
   const breakdowns = checkedOutBookings.map(getBookingRevenueBreakdown);
 
   const dailyRevenueMap: Record<string, DailyRevenueData> = {};
@@ -306,7 +311,5 @@ export const buildReportAnalytics = (bookings: Booking[]): ReportAnalyticsResult
 };
 
 export const useReportAnalytics = (bookings: Booking[], startDate?: string, endDate?: string) => {
-  void startDate;
-  void endDate;
-  return useMemo(() => buildReportAnalytics(bookings), [bookings]);
+  return useMemo(() => buildReportAnalytics(bookings, startDate, endDate), [bookings, startDate, endDate]);
 };

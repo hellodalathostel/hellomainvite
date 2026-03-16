@@ -1,20 +1,21 @@
 
 import React from 'react';
 import { LayoutDashboard, CalendarDays, Plus, PieChart, Settings, MessageSquare, LogOut as LogoutIcon } from 'lucide-react';
-import { User } from '../types/types';
+import type { AppTab, UserRole } from '../types/types';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 interface SidebarProps {
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  user: any;
-  userRole: string;
+    activeTab: AppTab;
+    setActiveTab: (tab: AppTab) => void;
+    user: FirebaseUser | null;
+    userRole: UserRole;
   logout: () => void;
   openBookingModal: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, userRole, logout, openBookingModal }) => {
   
-  const SidebarItem = ({ id, icon: Icon, label }: { id: string, icon: any, label: string }) => (
+    const SidebarItem = ({ id, icon: Icon, label }: { id: AppTab, icon: React.ComponentType<{ size?: number; className?: string }>, label: string }) => (
       <button 
           onClick={() => setActiveTab(id)}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${

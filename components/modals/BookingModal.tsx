@@ -98,6 +98,41 @@ export default function BookingModal({
     addRoomToGroup, convertSingleToGroup, removeRoomFromGroup, addToast,
   });
 
+  const renderActionButtons = (mobile: boolean) => {
+    const commonButton = mobile
+      ? 'flex flex-col items-center justify-center gap-1 py-2.5 rounded-2xl font-bold text-xs active:scale-95'
+      : 'w-full flex flex-col items-center justify-center gap-1 py-3 rounded-2xl font-bold text-xs hover:brightness-95 active:scale-95';
+
+    return (
+      <>
+        <button onClick={handleOpenChangeRoom} className={`${commonButton} bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300`}>
+          <ArrowRightLeft size={18} className="text-orange-500"/> Đổi phòng
+        </button>
+        {form.groupId && (
+          <button onClick={handleOpenAddRoom} className={`${commonButton} bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border border-blue-100 dark:border-blue-800`}>
+            <UserPlus size={18} className="text-blue-600 dark:text-blue-400"/> {mobile ? 'Thêm Phòng' : 'Thêm phòng'}
+          </button>
+        )}
+        <button onClick={() => handleConfirmation(false)} className={`${commonButton} bg-purple-50 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border border-purple-100 dark:border-purple-800`}>
+          <ClipboardCheck size={18} className="text-purple-600 dark:text-purple-400"/> {mobile ? 'In Phiếu (P)' : 'In Phiếu (Phòng)'}
+        </button>
+        <button onClick={() => handleInvoice(false)} className={`${commonButton} bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border border-blue-100 dark:border-blue-800`}>
+          <FileText size={18} className="text-blue-600 dark:text-blue-400"/> {mobile ? 'In HĐ (P)' : 'In HĐ (Phòng)'}
+        </button>
+        {form.groupId && (
+          <>
+            <button onClick={() => handleConfirmation(true)} className={`${commonButton} bg-fuchsia-50 dark:bg-fuchsia-900/30 text-fuchsia-800 dark:text-fuchsia-300 border border-fuchsia-100 dark:border-fuchsia-800`}>
+              <Users size={18} className="text-fuchsia-600 dark:text-fuchsia-400"/> {mobile ? 'In Phiếu (Đ)' : 'In Phiếu (Đoàn)'}
+            </button>
+            <button onClick={() => handleInvoice(true)} className={`${commonButton} bg-indigo-50 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800`}>
+              <Users size={18} className="text-indigo-600 dark:text-indigo-400"/> {mobile ? 'In HĐ (Đ)' : 'In HĐ (Đoàn)'}
+            </button>
+          </>
+        )}
+      </>
+    );
+  };
+
   if (!show) return null;
 
   return (
@@ -232,30 +267,7 @@ export default function BookingModal({
             {showDesktopActionColumn && !confirmDelete && (
               <aside className="hidden lg:block">
                 <div className="sticky top-2 space-y-3">
-                  <button onClick={handleOpenChangeRoom} className="w-full flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold text-xs hover:bg-gray-200 transition-colors active:scale-95">
-                    <ArrowRightLeft size={18} className="text-orange-500"/> Đổi phòng
-                  </button>
-                  {form.groupId && (
-                    <button onClick={handleOpenAddRoom} className="w-full flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 font-bold text-xs hover:bg-blue-100 transition-colors active:scale-95 border border-blue-100 dark:border-blue-800">
-                      <UserPlus size={18} className="text-blue-600 dark:text-blue-400"/> Thêm phòng
-                    </button>
-                  )}
-                  <button onClick={() => handleConfirmation(false)} className="w-full flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-purple-50 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 font-bold text-xs hover:bg-purple-100 transition-colors active:scale-95 border border-purple-100 dark:border-purple-800">
-                    <ClipboardCheck size={18} className="text-purple-600 dark:text-purple-400"/> In Phiếu (Phòng)
-                  </button>
-                  <button onClick={() => handleInvoice(false)} className="w-full flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 font-bold text-xs hover:bg-blue-100 transition-colors active:scale-95 border border-blue-100 dark:border-blue-800">
-                    <FileText size={18} className="text-blue-600 dark:text-blue-400"/> In HĐ (Phòng)
-                  </button>
-                  {form.groupId && (
-                    <>
-                      <button onClick={() => handleConfirmation(true)} className="w-full flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-fuchsia-50 dark:bg-fuchsia-900/30 text-fuchsia-800 dark:text-fuchsia-300 font-bold text-xs hover:bg-fuchsia-100 transition-colors active:scale-95 border border-fuchsia-100 dark:border-fuchsia-800">
-                        <Users size={18} className="text-fuchsia-600 dark:text-fuchsia-400"/> In Phiếu (Đoàn)
-                      </button>
-                      <button onClick={() => handleInvoice(true)} className="w-full flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 font-bold text-xs hover:bg-indigo-100 transition-colors active:scale-95 border border-indigo-100 dark:border-indigo-800">
-                        <Users size={18} className="text-indigo-600 dark:text-indigo-400"/> In HĐ (Đoàn)
-                      </button>
-                    </>
-                  )}
+                  {renderActionButtons(false)}
                 </div>
               </aside>
             )}
@@ -265,30 +277,7 @@ export default function BookingModal({
         {/* Mobile action bar */}
         {form.id && !isLocked && form.status !== 'cancelled' && form.status !== 'checked-out' && !confirmDelete && (
           <div className="p-3 bg-white dark:bg-slate-950 border-t dark:border-slate-800 grid grid-cols-2 gap-3 shrink-0 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] lg:hidden">
-            <button onClick={handleOpenChangeRoom} className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold text-xs active:scale-95">
-              <ArrowRightLeft size={18} className="text-orange-500"/> Đổi phòng
-            </button>
-            {form.groupId && (
-              <button onClick={handleOpenAddRoom} className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 font-bold text-xs active:scale-95 border border-blue-100 dark:border-blue-800">
-                <UserPlus size={18} className="text-blue-600 dark:text-blue-400"/> Thêm Phòng
-              </button>
-            )}
-            <button onClick={() => handleConfirmation(false)} className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-2xl bg-purple-50 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 font-bold text-xs active:scale-95 border border-purple-100 dark:border-purple-800">
-              <ClipboardCheck size={18} className="text-purple-600 dark:text-purple-400"/> In Phiếu (P)
-            </button>
-            <button onClick={() => handleInvoice(false)} className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 font-bold text-xs active:scale-95 border border-blue-100 dark:border-blue-800">
-              <FileText size={18} className="text-blue-600 dark:text-blue-400"/> In HĐ (P)
-            </button>
-            {form.groupId && (
-              <>
-                <button onClick={() => handleConfirmation(true)} className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-2xl bg-fuchsia-50 dark:bg-fuchsia-900/30 text-fuchsia-800 dark:text-fuchsia-300 font-bold text-xs active:scale-95 border border-fuchsia-100 dark:border-fuchsia-800">
-                  <Users size={18} className="text-fuchsia-600 dark:text-fuchsia-400"/> In Phiếu (Đ)
-                </button>
-                <button onClick={() => handleInvoice(true)} className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 font-bold text-xs active:scale-95 border border-indigo-100 dark:border-indigo-800">
-                  <Users size={18} className="text-indigo-600 dark:text-indigo-400"/> In HĐ (Đ)
-                </button>
-              </>
-            )}
+            {renderActionButtons(true)}
           </div>
         )}
 
