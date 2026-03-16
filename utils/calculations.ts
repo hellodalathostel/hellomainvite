@@ -1,6 +1,6 @@
 
-import { Booking, RoomDefinition, InvoiceItem } from '../types/types';
-import { getDaysDiff, formatDate, formatCurrency } from './utils';
+import type { Booking, RoomDefinition, InvoiceItem } from '../types/types';
+import { getDaysDiff, formatDate, formatCurrency } from './utils.ts';
 
 export const CARD_FEE_RATE = 0.04;
 export const CARD_FEE_SERVICE_NAME = 'Phí quẹt thẻ (4%)';
@@ -8,6 +8,28 @@ export const CARD_FEE_SERVICE_NAME = 'Phí quẹt thẻ (4%)';
 export const calculateCardServiceFee = (amount: number) => {
   return Math.round(Math.max(0, amount) * CARD_FEE_RATE);
 };
+
+export const normalizeMoneyAmount = (value: number | undefined) => {
+  const normalized = Number(value);
+  if (!Number.isFinite(normalized)) return 0;
+  return Math.max(0, normalized);
+};
+
+export const getBookingServiceTotal = (booking: Pick<Booking, 'services'> | Partial<Booking>) =>
+  (booking.services || []).reduce((sum, service) => {
+    const unitPrice = normalizeMoneyAmount(service.price);
+    const qty = normalizeMoneyAmount(service.qty);
+    return sum + Math.round(unitPrice * qty);
+  }, 0);
+
+export const getBookingDiscountTotal = (booking: Pick<Booking, 'discounts'> | Partial<Booking>) =>
+  (booking.discounts || []).reduce((sum, discount) => sum + Math.round(normalizeMoneyAmount(discount.amount)), 0);
+
+export const hasCardFeeService = (booking: Pick<Booking, 'services'> | Partial<Booking>) =>
+  (booking.services || []).some(service => service.name === CARD_FEE_SERVICE_NAME);
+
+export const getEffectiveBookingSurcharge = (booking: Pick<Booking, 'services' | 'surcharge'> | Partial<Booking>) =>
+  hasCardFeeService(booking) ? 0 : Math.round(normalizeMoneyAmount(booking.surcharge));
 
 interface CalculationResult {
   roomTotal: number;
@@ -55,17 +77,17 @@ export const calculateBookingTotal = (
     roomTotal = Math.round(price * nights);
   }
 
-  const serviceTotal = (booking.services || []).reduce((sum, s) => sum + Math.round(s.price * s.qty), 0);
-  const discountTotal = (booking.discounts || []).reduce((sum, d) => sum + Math.round(d.amount), 0);
+  const serviceTotal = getBookingServiceTotal(booking);
+  const discountTotal = getBookingDiscountTotal(booking);
   const preTaxTotal = Math.round(roomTotal + serviceTotal - discountTotal);
 
-  const paid = booking.paid || 0;
+  const paid = normalizeMoneyAmount(booking.paid);
   const remainingBeforeSurcharge = Math.max(0, preTaxTotal - paid);
-  const hasCardFeeService = (booking.services || []).some(s => s.name === CARD_FEE_SERVICE_NAME);
+  const hasFixedCardFeeService = hasCardFeeService(booking);
   
   const surcharge = booking.paymentMethod === 'card' 
-    ? (hasCardFeeService ? (booking.surcharge || 0) : calculateCardServiceFee(remainingBeforeSurcharge))
-    : (booking.surcharge || 0); 
+    ? (hasFixedCardFeeService ? 0 : calculateCardServiceFee(remainingBeforeSurcharge))
+    : getEffectiveBookingSurcharge(booking);
 
   const grandTotal = Math.round(preTaxTotal + surcharge);
   const debt = Math.round(grandTotal - paid);
@@ -136,7 +158,7 @@ export const calculateBill = (
             });
         }
         
-        calculatedSurcharge += (b.surcharge || 0);
+        calculatedSurcharge += getEffectiveBookingSurcharge(b);
     }); 
     
     calculatedTotal += calculatedSurcharge;

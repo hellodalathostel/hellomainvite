@@ -108,10 +108,10 @@ const GeneratedView = () => {
             
             // Logic: Grand Total = Room + Services + Surcharge - Discount
             const bNights = getDaysDiff(b.checkIn, b.checkOut);
-            const bRoomTotal = b.price * bNights;
-            const bServices = b.services?.reduce((acc, s) => acc + s.price * s.qty, 0) || 0;
-            const bDiscount = b.discounts?.reduce((acc, d) => acc + d.amount, 0) || 0;
-            const bSurcharge = b.surcharge || 0;
+            const bRoomTotal = normalizeMoneyAmount(b.price) * bNights;
+            const bServices = getBookingServiceTotal(b);
+            const bDiscount = getBookingDiscountTotal(b);
+            const bSurcharge = getEffectiveBookingSurcharge(b);
             
             grandTotal += (bRoomTotal + bServices + bSurcharge - bDiscount);
             totalPaid += (b.paid || 0);

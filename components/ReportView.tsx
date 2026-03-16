@@ -1,17 +1,21 @@
 
 import React, { useState, useMemo } from 'react';
-import { Download, TrendingUp, Wallet, PieChart, ChevronDown, ChevronUp, CreditCard, Layers, BedDouble, ArrowDownCircle } from 'lucide-react';
+import { Download, Copy, TrendingUp, Wallet, PieChart, ChevronDown, ChevronUp, CreditCard, Layers, BedDouble, ArrowDownCircle } from 'lucide-react';
 import { addDays, formatCompactCurrency, formatCurrency, getDaysDiff } from '../utils/utils';
+import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from '../utils/calculations';
 import { useData } from '../context/DataContext';
-import { useReportAnalytics } from '../hooks/useReportAnalytics';
+import { useUI } from '../context/UIContext';
+import { buildDailyAccountingExportRows, useReportAnalytics } from '../hooks/useReportAnalytics';
 import { BarChart, PieChart as PieChartComponent, LineChart } from './charts/Charts';
 
 const ReportView = () => {
   const { bookings, expenses, rooms, roomStates } = useData();
+  const { addToast } = useUI();
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showDetails, setShowDetails] = useState(true);
   const [activeTab, setActiveTab] = useState<'summary' | 'daily' | 'room' | 'source' | 'customer'>('summary');
   const [reportRange, setReportRange] = useState<'today' | '7days' | 'month'>('month');
+  const [revenueMode, setRevenueMode] = useState<'net' | 'gross'>('net');
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -57,29 +61,28 @@ const ReportView = () => {
 
   const stats = useMemo(() => {
     if(!bookings || !expenses) return { 
-        revenue: 0, roomRevenue: 0, serviceRevenue: 0, surchargeRevenue: 0, otherIncome: 0,
+        netRevenue: 0, grossRevenue: 0, roomRevenue: 0, serviceRevenue: 0, surchargeRevenue: 0, discountRevenue: 0, otherIncome: 0,
         expense: 0, bankFee: 0, operatingExpense: 0, 
-        profit: 0,
+        netProfit: 0, grossProfit: 0,
         occupancyRate: 0, totalNightsSold: 0, totalAvailableNights: 0
     };
     
     let roomRevenue = 0;
     let serviceRevenue = 0;
     let surchargeRevenue = 0;
+    let discountRevenue = 0;
 
     const relevantBookings = reportBookings;
 
     relevantBookings.forEach(b => {
         const nights = getDaysDiff(b.checkIn, b.checkOut);
-        roomRevenue += (b.price * nights);
+      roomRevenue += (normalizeMoneyAmount(b.price) * nights);
         
-        if (b.services) {
-            serviceRevenue += b.services.reduce((acc, s) => acc + (s.price * s.qty), 0);
-        }
+      serviceRevenue += getBookingServiceTotal(b);
         
-        if (b.surcharge) {
-            surchargeRevenue += b.surcharge;
-        }
+      surchargeRevenue += getEffectiveBookingSurcharge(b);
+
+      discountRevenue += getBookingDiscountTotal(b);
     });
 
     let bankFee = 0;
@@ -100,7 +103,8 @@ const ReportView = () => {
         }
     });
 
-    const totalRevenue = roomRevenue + serviceRevenue + surchargeRevenue + otherIncome;
+    const totalRevenueGross = roomRevenue + serviceRevenue + surchargeRevenue + otherIncome;
+    const totalRevenueNet = Math.max(0, totalRevenueGross - discountRevenue);
     const totalExpense = bankFee + operatingExpense;
 
     const rangeStart = dateRange.start;
@@ -130,15 +134,18 @@ const ReportView = () => {
     const occupancyRate = totalAvailableNights > 0 ? (totalNightsSold / totalAvailableNights) * 100 : 0;
 
     return {
-      revenue: totalRevenue,
+      netRevenue: totalRevenueNet,
+      grossRevenue: totalRevenueGross,
       roomRevenue,
       serviceRevenue,
       surchargeRevenue,
+      discountRevenue,
       otherIncome,
       expense: totalExpense,
       bankFee,
       operatingExpense,
-      profit: totalRevenue - totalExpense,
+      netProfit: totalRevenueNet - totalExpense,
+      grossProfit: totalRevenueGross - totalExpense,
       occupancyRate,
       totalNightsSold,
       totalAvailableNights
@@ -159,13 +166,13 @@ const ReportView = () => {
     const emptyRooms = Math.max(0, rooms.length - activeRoomIds.size);
 
     const dueCollection = bookings
-      .filter(b => b.status !== 'cancelled' && (inRange(b.checkIn) || inRange(b.checkOut) || (b.checkIn < dateRange.start && b.checkOut > dateRange.end)))
+      .filter(b => b.status !== 'cancelled' && inRange(b.checkOut))
       .reduce((sum, b) => {
-        const roomTotal = b.price * getDaysDiff(b.checkIn, b.checkOut);
-        const serviceTotal = (b.services || []).reduce((acc, s) => acc + (s.price * s.qty), 0);
-        const discountTotal = (b.discounts || []).reduce((acc, d) => acc + (d.amount || 0), 0);
-        const grandTotal = roomTotal + serviceTotal + (b.surcharge || 0) - discountTotal;
-        const debt = Math.max(0, grandTotal - (b.paid || 0));
+        const roomTotal = normalizeMoneyAmount(b.price) * getDaysDiff(b.checkIn, b.checkOut);
+        const serviceTotal = getBookingServiceTotal(b);
+        const discountTotal = getBookingDiscountTotal(b);
+        const grandTotal = roomTotal + serviceTotal + getEffectiveBookingSurcharge(b) - discountTotal;
+        const debt = Math.max(0, grandTotal - normalizeMoneyAmount(b.paid));
         return sum + debt;
       }, 0);
 
@@ -181,6 +188,10 @@ const ReportView = () => {
   const handleExport = () => {
       window.print();
   }
+
+  const displayedRevenue = revenueMode === 'net' ? stats.netRevenue : stats.grossRevenue;
+  const displayedProfit = revenueMode === 'net' ? stats.netProfit : stats.grossProfit;
+  const dailyAccountingRows = useMemo(() => buildDailyAccountingExportRows(dailyRevenue), [dailyRevenue]);
 
   const handleExportRoomRevenueCsv = () => {
     const rows: string[] = ['Loại kỳ,Kỳ,Tiền phòng,Số booking'];
@@ -207,6 +218,59 @@ const ReportView = () => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleExportDailyAccountingCsv = () => {
+    const rows: string[] = ['Ngay,So booking,Tien phong,Tien dich vu,Phu thu,Giam tru,Doanh thu gross,Doanh thu net'];
+
+    dailyAccountingRows.forEach(item => {
+      rows.push([
+        item.date,
+        item.bookingCount,
+        item.roomRevenue,
+        item.serviceRevenue,
+        item.surchargeRevenue,
+        item.discountTotal,
+        item.grossRevenue,
+        item.revenue,
+      ].join(','));
+    });
+
+    const csvContent = `\uFEFF${rows.join('\n')}`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `so-ke-toan-theo-ngay-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    addToast('Da xuat CSV so ke toan theo ngay', 'success');
+  };
+
+  const handleCopyDailyAccounting = async () => {
+    try {
+      const lines = [
+        ['Ngay', 'So booking', 'Tien phong', 'Tien dich vu', 'Phu thu', 'Giam tru', 'Doanh thu gross', 'Doanh thu net'].join('\t'),
+        ...dailyAccountingRows.map(item => [
+          item.date,
+          item.bookingCount,
+          item.roomRevenue,
+          item.serviceRevenue,
+          item.surchargeRevenue,
+          item.discountTotal,
+          item.grossRevenue,
+          item.revenue,
+        ].join('\t')),
+      ];
+
+      await navigator.clipboard.writeText(lines.join('\n'));
+      addToast('Da copy bang so ke toan theo ngay', 'success');
+    } catch (error) {
+      console.error('Copy daily accounting failed', error);
+      addToast('Khong the copy du lieu so ke toan', 'error');
+    }
   };
 
   return (
@@ -252,12 +316,29 @@ const ReportView = () => {
         Kỳ báo cáo: {rangeLabel}
       </div>
 
+      <div className="flex justify-end">
+        <div className="inline-flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setRevenueMode('net')}
+            className={`px-3 py-1.5 text-xs font-bold ${revenueMode === 'net' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200'}`}
+          >
+            Net
+          </button>
+          <button
+            onClick={() => setRevenueMode('gross')}
+            className={`px-3 py-1.5 text-xs font-bold ${revenueMode === 'gross' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200'}`}
+          >
+            Gross
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border-l-4 border-green-500 shadow-sm">
            <div className="flex justify-between items-start">
              <div>
                 <p className="text-gray-600 dark:text-gray-300 text-xs font-black uppercase">Doanh thu</p>
-                <h3 className="text-2xl font-black text-green-700 dark:text-green-400 mt-1">{formatCompactCurrency(stats.revenue)}</h3>
+                <h3 className="text-2xl font-black text-green-700 dark:text-green-400 mt-1">{formatCompactCurrency(displayedRevenue)}</h3>
              </div>
              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full text-green-700"><TrendingUp size={20}/></div>
            </div>
@@ -275,7 +356,7 @@ const ReportView = () => {
            <div className="flex justify-between items-start">
              <div>
                 <p className="text-gray-600 dark:text-gray-300 text-xs font-black uppercase">Lợi nhuận</p>
-                <h3 className="text-2xl font-black text-blue-700 dark:text-blue-400 mt-1">{formatCompactCurrency(stats.profit)}</h3>
+                <h3 className="text-2xl font-black text-blue-700 dark:text-blue-400 mt-1">{formatCompactCurrency(displayedProfit)}</h3>
              </div>
              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-700"><PieChart size={20}/></div>
            </div>
@@ -283,9 +364,9 @@ const ReportView = () => {
         <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border-l-4 border-purple-500 shadow-sm">
            <div className="flex justify-between items-start">
              <div>
-                <p className="text-gray-600 dark:text-gray-300 text-xs font-black uppercase">Công suất</p>
+                <p className="text-gray-600 dark:text-gray-300 text-xs font-black uppercase">Công suất sử dụng</p>
                 <h3 className="text-2xl font-black text-purple-700 dark:text-purple-400 mt-1">{stats.occupancyRate.toFixed(1)}%</h3>
-                <p className="text-[10px] text-gray-500 font-bold">{stats.totalNightsSold}/{stats.totalAvailableNights} đêm</p>
+                <p className="text-[10px] text-gray-500 font-bold">{stats.totalNightsSold}/{stats.totalAvailableNights} đêm hoạt động</p>
              </div>
              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-700"><BedDouble size={20}/></div>
            </div>
@@ -345,6 +426,12 @@ const ReportView = () => {
                         <span className="flex items-center gap-1 font-bold"><CreditCard size={14}/> Phí dịch vụ (Thu khách)</span>
                         <span className="font-bold">{formatCurrency(stats.surchargeRevenue)}</span>
                     </div>
+                    {stats.discountRevenue > 0 && (
+                      <div className="flex justify-between items-center text-sm text-amber-700 dark:text-amber-400">
+                        <span className="font-bold">Giảm trừ</span>
+                        <span className="font-bold">- {formatCurrency(stats.discountRevenue)}</span>
+                      </div>
+                    )}
                     {stats.otherIncome > 0 && (
                         <div className="flex justify-between items-center text-sm text-green-700 dark:text-green-400">
                             <span className="flex items-center gap-1 font-bold"><ArrowDownCircle size={14}/> Thu nhập khác</span>
@@ -352,8 +439,8 @@ const ReportView = () => {
                         </div>
                     )}
                     <div className="border-t dark:border-gray-700 pt-2 flex justify-between items-center font-black text-green-700 dark:text-green-400">
-                        <span>Tổng thu</span>
-                        <span>{formatCurrency(stats.revenue)}</span>
+                      <span>Tổng thu ({revenueMode.toUpperCase()})</span>
+                      <span>{formatCurrency(displayedRevenue)}</span>
                     </div>
                 </div>
 
@@ -434,8 +521,8 @@ const ReportView = () => {
         {activeTab === 'summary' && (
           <div className="space-y-6">
             <LineChart
-              data={monthlyRevenue.map(m => ({ date: m.month, value: m.revenue }))}
-              title="Doanh thu theo tháng"
+              data={monthlyRevenue.map(m => ({ date: m.month, value: revenueMode === 'net' ? m.revenue : m.grossRevenue }))}
+              title={`Doanh thu theo tháng (${revenueMode.toUpperCase()})`}
               height={300}
             />
           </div>
@@ -443,9 +530,23 @@ const ReportView = () => {
 
         {activeTab === 'daily' && (
           <div className="space-y-6">
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={handleCopyDailyAccounting}
+                className="px-3 py-2 rounded-lg bg-slate-600 hover:bg-slate-700 text-white text-sm font-bold flex items-center gap-2"
+              >
+                <Copy size={16} /> Copy bang ngay
+              </button>
+              <button
+                onClick={handleExportDailyAccountingCsv}
+                className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold flex items-center gap-2"
+              >
+                <Download size={16} /> Xuat CSV so ke toan
+              </button>
+            </div>
             <LineChart
-              data={dailyRevenue.map(d => ({ date: d.date, value: d.revenue }))}
-              title="Doanh thu theo ngày"
+              data={dailyRevenue.map(d => ({ date: d.date, value: revenueMode === 'net' ? d.revenue : d.grossRevenue }))}
+              title={`Doanh thu theo ngày (${revenueMode.toUpperCase()})`}
               height={300}
             />
           </div>
@@ -565,8 +666,8 @@ const ReportView = () => {
         {activeTab === 'source' && (
           <div className="space-y-6">
             <PieChartComponent
-              data={sourceRevenue.map(s => ({ name: s.source, value: s.revenue, percentage: s.percentage }))}
-              title="Doanh thu theo nguồn"
+              data={sourceRevenue.map(s => ({ name: s.source, value: revenueMode === 'net' ? s.revenue : s.grossRevenue, percentage: revenueMode === 'net' ? s.percentage : s.grossPercentage }))}
+              title={`Doanh thu theo nguồn (${revenueMode.toUpperCase()})`}
             />
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
               <table className="w-full">
@@ -582,8 +683,8 @@ const ReportView = () => {
                   {sourceRevenue.map((source, idx) => (
                     <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{source.source}</td>
-                      <td className="px-6 py-4 text-sm text-right text-gray-900 dark:text-white font-bold">{formatCurrency(source.revenue)}</td>
-                      <td className="px-6 py-4 text-sm text-right text-gray-600 dark:text-gray-400">{source.percentage.toFixed(1)}%</td>
+                      <td className="px-6 py-4 text-sm text-right text-gray-900 dark:text-white font-bold">{formatCurrency(revenueMode === 'net' ? source.revenue : source.grossRevenue)}</td>
+                      <td className="px-6 py-4 text-sm text-right text-gray-600 dark:text-gray-400">{(revenueMode === 'net' ? source.percentage : source.grossPercentage).toFixed(1)}%</td>
                       <td className="px-6 py-4 text-sm text-right text-gray-600 dark:text-gray-400">{source.bookingCount}</td>
                     </tr>
                   ))}
@@ -615,7 +716,7 @@ const ReportView = () => {
                       <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{customer.customerName}</td>
                         <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{customer.phone}</td>
-                        <td className="px-6 py-4 text-sm text-right text-gray-900 dark:text-white font-bold">{formatCurrency(customer.revenue)}</td>
+                        <td className="px-6 py-4 text-sm text-right text-gray-900 dark:text-white font-bold">{formatCurrency(revenueMode === 'net' ? customer.revenue : customer.grossRevenue)}</td>
                         <td className="px-6 py-4 text-sm text-right text-gray-600 dark:text-gray-400">{customer.bookingCount}</td>
                         <td className="px-6 py-4 text-sm text-right text-gray-600 dark:text-gray-400">{customer.totalNights}</td>
                       </tr>

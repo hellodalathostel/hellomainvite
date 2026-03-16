@@ -5,6 +5,7 @@ import { Booking, RoomDefinition } from '../types/types';
 import { formatCurrency, formatCompactCurrency, formatDate } from '../utils/utils';
 import { useData } from '../context/DataContext';
 import { useUI } from '../context/UIContext';
+import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from '../utils/calculations';
 
 type RoomQuickFilter = 'all' | 'checkin' | 'checkout' | 'dirty' | 'debt';
 
@@ -96,8 +97,15 @@ const DashboardView = () => {
   const { searchInput, setSearchInput, activeSearchTerm, setActiveSearchTerm, openBookingModal, addToast } = useUI();
 
   function getBookingTotal(booking: Booking) {
-    const serviceTotal = booking.services?.reduce((sum, service) => sum + (service.price * service.qty), 0) || 0;
-    return (booking.totalAmount || 0) + (booking.surcharge || 0) + serviceTotal;
+    if (typeof booking.totalAmount === 'number' && booking.totalAmount > 0) {
+      return booking.totalAmount;
+    }
+
+    const nights = getDaysDiff(booking.checkIn, booking.checkOut);
+    const roomTotal = normalizeMoneyAmount(booking.price) * nights;
+    const serviceTotal = getBookingServiceTotal(booking);
+    const discountTotal = getBookingDiscountTotal(booking);
+    return roomTotal + serviceTotal + getEffectiveBookingSurcharge(booking) - discountTotal;
   }
   
   const today = new Date().toISOString().split('T')[0];

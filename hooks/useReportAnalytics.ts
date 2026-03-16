@@ -1,12 +1,16 @@
 import { useMemo } from 'react';
 import type { Booking } from '../types/types';
-import { getDaysDiff } from '../utils/utils';
+import { getDaysDiff } from '../utils/utils.ts';
+import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from '../utils/calculations.ts';
 
 export interface DailyRevenueData {
   date: string;
   revenue: number;
+  grossRevenue: number;
+  discountTotal: number;
   roomRevenue: number;
   serviceRevenue: number;
+  surchargeRevenue: number;
   bookingCount: number;
 }
 
@@ -21,14 +25,19 @@ export interface RoomRevenueData {
 export interface SourceRevenueData {
   source: string;
   revenue: number;
+  grossRevenue: number;
+  discountTotal: number;
   bookingCount: number;
   percentage: number;
+  grossPercentage: number;
 }
 
 export interface CustomerRevenueData {
   customerName: string;
   phone: string;
   revenue: number;
+  grossRevenue: number;
+  discountTotal: number;
   bookingCount: number;
   totalNights: number;
   lastCheckOut: string;
@@ -37,8 +46,11 @@ export interface CustomerRevenueData {
 export interface MonthlyRevenueData {
   month: string;
   revenue: number;
+  grossRevenue: number;
+  discountTotal: number;
   roomRevenue: number;
   serviceRevenue: number;
+  surchargeRevenue: number;
   bookingCount: number;
 }
 
@@ -48,264 +60,253 @@ export interface RoomRevenuePeriodData {
   bookingCount: number;
 }
 
-export const useReportAnalytics = (bookings: Booking[], startDate?: string, endDate?: string) => {
-  
-  // Daily revenue by date
-  const dailyRevenue = useMemo(() => {
-    const data: Record<string, DailyRevenueData> = {};
-    
-    (bookings || [])
-      .filter(b => b.status === 'checked-out')
-      .forEach(b => {
-        // Use checkOut date as reference
-        const date = b.checkOut;
-        
-        if (!data[date]) {
-          data[date] = {
-            date,
-            revenue: 0,
-            roomRevenue: 0,
-            serviceRevenue: 0,
-            bookingCount: 0,
-          };
-        }
-        
-        const nights = getDaysDiff(b.checkIn, b.checkOut);
-        const roomRev = b.price * nights;
-        const serviceRev = (b.services || []).reduce((sum, s) => sum + (s.price * s.qty), 0);
-        const surge = b.surcharge || 0;
-        
-        data[date].roomRevenue += roomRev;
-        data[date].serviceRevenue += serviceRev;
-        data[date].revenue += roomRev + serviceRev + surge;
-        data[date].bookingCount += 1;
-      });
-    
-    return Object.values(data).sort((a, b) => a.date.localeCompare(b.date));
-  }, [bookings]);
+export interface BookingRevenueBreakdown {
+  bookingId: string;
+  date: string;
+  month: string;
+  quarter: string;
+  year: string;
+  roomId: string;
+  customerName: string;
+  phone: string;
+  source: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  roomRevenue: number;
+  serviceRevenue: number;
+  surchargeRevenue: number;
+  discountTotal: number;
+  grossRevenue: number;
+  revenue: number;
+}
 
-  // Revenue by room
-  const roomRevenue = useMemo(() => {
-    const data: Record<string, RoomRevenueData> = {};
-    
-    (bookings || [])
-      .filter(b => b.status === 'checked-out')
-      .forEach(b => {
-        const roomId = b.roomId;
-        
-        if (!data[roomId]) {
-          data[roomId] = {
-            roomId,
-            revenue: 0,
-            nights: 0,
-            bookingCount: 0,
-            occupancyRate: 0,
-          };
-        }
-        
-        const nights = getDaysDiff(b.checkIn, b.checkOut);
-        const roomRev = b.price * nights;
-        const serviceRev = (b.services || []).reduce((sum, s) => sum + (s.price * s.qty), 0);
-        
-        data[roomId].revenue += roomRev + serviceRev;
-        data[roomId].nights += nights;
-        data[roomId].bookingCount += 1;
-      });
-    
-    return Object.values(data).sort((a, b) => b.revenue - a.revenue);
-  }, [bookings]);
+export interface DailyAccountingExportRow {
+  date: string;
+  bookingCount: number;
+  roomRevenue: number;
+  serviceRevenue: number;
+  surchargeRevenue: number;
+  discountTotal: number;
+  grossRevenue: number;
+  revenue: number;
+}
 
-  // Revenue by source
-  const sourceRevenue = useMemo(() => {
-    const data: Record<string, SourceRevenueData> = {};
-    let totalRevenue = 0;
-    
-    (bookings || [])
-      .filter(b => b.status === 'checked-out')
-      .forEach(b => {
-        const source = b.source || 'Chưa xác định';
-        
-        if (!data[source]) {
-          data[source] = {
-            source,
-            revenue: 0,
-            bookingCount: 0,
-            percentage: 0,
-          };
-        }
-        
-        const nights = getDaysDiff(b.checkIn, b.checkOut);
-        const roomRev = b.price * nights;
-        const serviceRev = (b.services || []).reduce((sum, s) => sum + (s.price * s.qty), 0);
-        const surge = b.surcharge || 0;
-        const rev = roomRev + serviceRev + surge;
-        
-        data[source].revenue += rev;
-        data[source].bookingCount += 1;
-        totalRevenue += rev;
-      });
-    
-    // Calculate percentages
-    Object.values(data).forEach(item => {
-      item.percentage = totalRevenue > 0 ? (item.revenue / totalRevenue) * 100 : 0;
-    });
-    
-    return Object.values(data).sort((a, b) => b.revenue - a.revenue);
-  }, [bookings]);
+export interface ReportAnalyticsResult {
+  dailyRevenue: DailyRevenueData[];
+  roomRevenue: RoomRevenueData[];
+  sourceRevenue: SourceRevenueData[];
+  customerRevenue: CustomerRevenueData[];
+  monthlyRevenue: MonthlyRevenueData[];
+  roomRevenueByMonth: RoomRevenuePeriodData[];
+  roomRevenueByQuarter: RoomRevenuePeriodData[];
+  roomRevenueByYear: RoomRevenuePeriodData[];
+}
 
-  // Revenue by customer
-  const customerRevenue = useMemo(() => {
-    const data: Record<string, CustomerRevenueData> = {};
-    
-    (bookings || [])
-      .filter(b => b.status === 'checked-out')
-      .forEach(b => {
-        const key = `${b.guestName}||${b.phone}`;
-        
-        if (!data[key]) {
-          data[key] = {
-            customerName: b.guestName,
-            phone: b.phone,
-            revenue: 0,
-            bookingCount: 0,
-            totalNights: 0,
-            lastCheckOut: b.checkOut,
-          };
-        }
-        
-        const nights = getDaysDiff(b.checkIn, b.checkOut);
-        const roomRev = b.price * nights;
-        const serviceRev = (b.services || []).reduce((sum, s) => sum + (s.price * s.qty), 0);
-        const surge = b.surcharge || 0;
-        
-        data[key].revenue += roomRev + serviceRev + surge;
-        data[key].bookingCount += 1;
-        data[key].totalNights += nights;
-        data[key].lastCheckOut = b.checkOut > data[key].lastCheckOut ? b.checkOut : data[key].lastCheckOut;
-      });
-    
-    return Object.values(data).sort((a, b) => b.revenue - a.revenue);
-  }, [bookings]);
+export const getReportSourceLabel = (source: string | undefined) => {
+  const normalized = (source || '').trim();
+  return normalized || 'Chua xac dinh';
+};
 
-  // Revenue by month
-  const monthlyRevenue = useMemo(() => {
-    const data: Record<string, MonthlyRevenueData> = {};
-    
-    (bookings || [])
-      .filter(b => b.status === 'checked-out')
-      .forEach(b => {
-        const month = b.checkOut.slice(0, 7); // YYYY-MM
-        
-        if (!data[month]) {
-          data[month] = {
-            month,
-            revenue: 0,
-            roomRevenue: 0,
-            serviceRevenue: 0,
-            bookingCount: 0,
-          };
-        }
-        
-        const nights = getDaysDiff(b.checkIn, b.checkOut);
-        const roomRev = b.price * nights;
-        const serviceRev = (b.services || []).reduce((sum, s) => sum + (s.price * s.qty), 0);
-        const surge = b.surcharge || 0;
-        
-        data[month].roomRevenue += roomRev;
-        data[month].serviceRevenue += serviceRev;
-        data[month].revenue += roomRev + serviceRev + surge;
-        data[month].bookingCount += 1;
-      });
-    
-    return Object.values(data).sort((a, b) => a.month.localeCompare(b.month));
-  }, [bookings]);
+export const getBookingRevenueBreakdown = (booking: Booking): BookingRevenueBreakdown => {
+  const nights = getDaysDiff(booking.checkIn, booking.checkOut);
+  const roomRevenue = normalizeMoneyAmount(booking.price) * nights;
+  const serviceRevenue = getBookingServiceTotal(booking);
+  const surchargeRevenue = getEffectiveBookingSurcharge(booking);
+  const discountTotal = getBookingDiscountTotal(booking);
+  const grossRevenue = roomRevenue + serviceRevenue + surchargeRevenue;
+  const revenue = Math.max(0, grossRevenue - discountTotal);
 
-  const roomRevenueByMonth = useMemo(() => {
-    const data: Record<string, RoomRevenuePeriodData> = {};
-
-    (bookings || [])
-      .filter(b => b.status === 'checked-out')
-      .forEach(b => {
-        const month = b.checkOut.slice(0, 7);
-        if (!data[month]) {
-          data[month] = {
-            period: month,
-            roomRevenue: 0,
-            bookingCount: 0,
-          };
-        }
-
-        const nights = getDaysDiff(b.checkIn, b.checkOut);
-        const roomRev = b.price * nights;
-
-        data[month].roomRevenue += roomRev;
-        data[month].bookingCount += 1;
-      });
-
-    return Object.values(data).sort((a, b) => a.period.localeCompare(b.period));
-  }, [bookings]);
-
-  const roomRevenueByQuarter = useMemo(() => {
-    const data: Record<string, RoomRevenuePeriodData> = {};
-
-    (bookings || [])
-      .filter(b => b.status === 'checked-out')
-      .forEach(b => {
-        const [year, month] = b.checkOut.split('-').map(Number);
-        const quarter = Math.floor((month - 1) / 3) + 1;
-        const period = `${year}-Q${quarter}`;
-
-        if (!data[period]) {
-          data[period] = {
-            period,
-            roomRevenue: 0,
-            bookingCount: 0,
-          };
-        }
-
-        const nights = getDaysDiff(b.checkIn, b.checkOut);
-        const roomRev = b.price * nights;
-
-        data[period].roomRevenue += roomRev;
-        data[period].bookingCount += 1;
-      });
-
-    return Object.values(data).sort((a, b) => a.period.localeCompare(b.period));
-  }, [bookings]);
-
-  const roomRevenueByYear = useMemo(() => {
-    const data: Record<string, RoomRevenuePeriodData> = {};
-
-    (bookings || [])
-      .filter(b => b.status === 'checked-out')
-      .forEach(b => {
-        const period = b.checkOut.slice(0, 4);
-        if (!data[period]) {
-          data[period] = {
-            period,
-            roomRevenue: 0,
-            bookingCount: 0,
-          };
-        }
-
-        const nights = getDaysDiff(b.checkIn, b.checkOut);
-        const roomRev = b.price * nights;
-
-        data[period].roomRevenue += roomRev;
-        data[period].bookingCount += 1;
-      });
-
-    return Object.values(data).sort((a, b) => a.period.localeCompare(b.period));
-  }, [bookings]);
+  const [yearStr, monthStr] = booking.checkOut.split('-');
+  const year = Number(yearStr) || 0;
+  const month = Number(monthStr) || 1;
+  const quarter = Math.floor((month - 1) / 3) + 1;
 
   return {
-    dailyRevenue,
+    bookingId: booking.id,
+    date: booking.checkOut,
+    month: booking.checkOut.slice(0, 7),
+    quarter: `${year}-Q${quarter}`,
+    year: booking.checkOut.slice(0, 4),
+    roomId: booking.roomId,
+    customerName: booking.guestName,
+    phone: booking.phone,
+    source: getReportSourceLabel(booking.source),
+    checkIn: booking.checkIn,
+    checkOut: booking.checkOut,
+    nights,
     roomRevenue,
-    sourceRevenue,
-    customerRevenue,
-    monthlyRevenue,
-    roomRevenueByMonth,
-    roomRevenueByQuarter,
-    roomRevenueByYear,
+    serviceRevenue,
+    surchargeRevenue,
+    discountTotal,
+    grossRevenue,
+    revenue,
   };
+};
+
+export const buildDailyAccountingExportRows = (dailyRevenue: DailyRevenueData[]): DailyAccountingExportRow[] => {
+  return (dailyRevenue || []).map(item => ({
+    date: item.date,
+    bookingCount: item.bookingCount,
+    roomRevenue: Math.round(item.roomRevenue),
+    serviceRevenue: Math.round(item.serviceRevenue),
+    surchargeRevenue: Math.round(item.surchargeRevenue),
+    discountTotal: Math.round(item.discountTotal),
+    grossRevenue: Math.round(item.grossRevenue),
+    revenue: Math.round(item.revenue),
+  }));
+};
+
+export const buildReportAnalytics = (bookings: Booking[]): ReportAnalyticsResult => {
+  const checkedOutBookings = (bookings || []).filter(b => b.status === 'checked-out');
+  const breakdowns = checkedOutBookings.map(getBookingRevenueBreakdown);
+
+  const dailyRevenueMap: Record<string, DailyRevenueData> = {};
+  const roomRevenueMap: Record<string, RoomRevenueData> = {};
+  const sourceRevenueMap: Record<string, SourceRevenueData> = {};
+  const customerRevenueMap: Record<string, CustomerRevenueData> = {};
+  const monthlyRevenueMap: Record<string, MonthlyRevenueData> = {};
+  const roomRevenueByMonthMap: Record<string, RoomRevenuePeriodData> = {};
+  const roomRevenueByQuarterMap: Record<string, RoomRevenuePeriodData> = {};
+  const roomRevenueByYearMap: Record<string, RoomRevenuePeriodData> = {};
+
+  let totalNetRevenue = 0;
+  let totalGrossRevenue = 0;
+
+  breakdowns.forEach(b => {
+    if (!dailyRevenueMap[b.date]) {
+      dailyRevenueMap[b.date] = {
+        date: b.date,
+        revenue: 0,
+        grossRevenue: 0,
+        discountTotal: 0,
+        roomRevenue: 0,
+        serviceRevenue: 0,
+        surchargeRevenue: 0,
+        bookingCount: 0,
+      };
+    }
+    dailyRevenueMap[b.date].revenue += b.revenue;
+    dailyRevenueMap[b.date].grossRevenue += b.grossRevenue;
+    dailyRevenueMap[b.date].discountTotal += b.discountTotal;
+    dailyRevenueMap[b.date].roomRevenue += b.roomRevenue;
+    dailyRevenueMap[b.date].serviceRevenue += b.serviceRevenue;
+    dailyRevenueMap[b.date].surchargeRevenue += b.surchargeRevenue;
+    dailyRevenueMap[b.date].bookingCount += 1;
+
+    if (!roomRevenueMap[b.roomId]) {
+      roomRevenueMap[b.roomId] = {
+        roomId: b.roomId,
+        revenue: 0,
+        nights: 0,
+        bookingCount: 0,
+        occupancyRate: 0,
+      };
+    }
+    roomRevenueMap[b.roomId].revenue += b.revenue;
+    roomRevenueMap[b.roomId].nights += b.nights;
+    roomRevenueMap[b.roomId].bookingCount += 1;
+
+    if (!sourceRevenueMap[b.source]) {
+      sourceRevenueMap[b.source] = {
+        source: b.source,
+        revenue: 0,
+        grossRevenue: 0,
+        discountTotal: 0,
+        bookingCount: 0,
+        percentage: 0,
+        grossPercentage: 0,
+      };
+    }
+    sourceRevenueMap[b.source].revenue += b.revenue;
+    sourceRevenueMap[b.source].grossRevenue += b.grossRevenue;
+    sourceRevenueMap[b.source].discountTotal += b.discountTotal;
+    sourceRevenueMap[b.source].bookingCount += 1;
+
+    totalNetRevenue += b.revenue;
+    totalGrossRevenue += b.grossRevenue;
+
+    const customerKey = `${b.customerName}||${b.phone}`;
+    if (!customerRevenueMap[customerKey]) {
+      customerRevenueMap[customerKey] = {
+        customerName: b.customerName,
+        phone: b.phone,
+        revenue: 0,
+        grossRevenue: 0,
+        discountTotal: 0,
+        bookingCount: 0,
+        totalNights: 0,
+        lastCheckOut: b.checkOut,
+      };
+    }
+    customerRevenueMap[customerKey].revenue += b.revenue;
+    customerRevenueMap[customerKey].grossRevenue += b.grossRevenue;
+    customerRevenueMap[customerKey].discountTotal += b.discountTotal;
+    customerRevenueMap[customerKey].bookingCount += 1;
+    customerRevenueMap[customerKey].totalNights += b.nights;
+    customerRevenueMap[customerKey].lastCheckOut = b.checkOut > customerRevenueMap[customerKey].lastCheckOut ? b.checkOut : customerRevenueMap[customerKey].lastCheckOut;
+
+    if (!monthlyRevenueMap[b.month]) {
+      monthlyRevenueMap[b.month] = {
+        month: b.month,
+        revenue: 0,
+        grossRevenue: 0,
+        discountTotal: 0,
+        roomRevenue: 0,
+        serviceRevenue: 0,
+        surchargeRevenue: 0,
+        bookingCount: 0,
+      };
+    }
+    monthlyRevenueMap[b.month].revenue += b.revenue;
+    monthlyRevenueMap[b.month].grossRevenue += b.grossRevenue;
+    monthlyRevenueMap[b.month].discountTotal += b.discountTotal;
+    monthlyRevenueMap[b.month].roomRevenue += b.roomRevenue;
+    monthlyRevenueMap[b.month].serviceRevenue += b.serviceRevenue;
+    monthlyRevenueMap[b.month].surchargeRevenue += b.surchargeRevenue;
+    monthlyRevenueMap[b.month].bookingCount += 1;
+
+    if (!roomRevenueByMonthMap[b.month]) {
+      roomRevenueByMonthMap[b.month] = { period: b.month, roomRevenue: 0, bookingCount: 0 };
+    }
+    roomRevenueByMonthMap[b.month].roomRevenue += b.roomRevenue;
+    roomRevenueByMonthMap[b.month].bookingCount += 1;
+
+    if (!roomRevenueByQuarterMap[b.quarter]) {
+      roomRevenueByQuarterMap[b.quarter] = { period: b.quarter, roomRevenue: 0, bookingCount: 0 };
+    }
+    roomRevenueByQuarterMap[b.quarter].roomRevenue += b.roomRevenue;
+    roomRevenueByQuarterMap[b.quarter].bookingCount += 1;
+
+    if (!roomRevenueByYearMap[b.year]) {
+      roomRevenueByYearMap[b.year] = { period: b.year, roomRevenue: 0, bookingCount: 0 };
+    }
+    roomRevenueByYearMap[b.year].roomRevenue += b.roomRevenue;
+    roomRevenueByYearMap[b.year].bookingCount += 1;
+  });
+
+  const sourceRevenue = Object.values(sourceRevenueMap)
+    .map(item => ({
+      ...item,
+      percentage: totalNetRevenue > 0 ? (item.revenue / totalNetRevenue) * 100 : 0,
+      grossPercentage: totalGrossRevenue > 0 ? (item.grossRevenue / totalGrossRevenue) * 100 : 0,
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
+
+  return {
+    dailyRevenue: Object.values(dailyRevenueMap).sort((a, b) => a.date.localeCompare(b.date)),
+    roomRevenue: Object.values(roomRevenueMap).sort((a, b) => b.revenue - a.revenue),
+    sourceRevenue,
+    customerRevenue: Object.values(customerRevenueMap).sort((a, b) => b.revenue - a.revenue),
+    monthlyRevenue: Object.values(monthlyRevenueMap).sort((a, b) => a.month.localeCompare(b.month)),
+    roomRevenueByMonth: Object.values(roomRevenueByMonthMap).sort((a, b) => a.period.localeCompare(b.period)),
+    roomRevenueByQuarter: Object.values(roomRevenueByQuarterMap).sort((a, b) => a.period.localeCompare(b.period)),
+    roomRevenueByYear: Object.values(roomRevenueByYearMap).sort((a, b) => a.period.localeCompare(b.period)),
+  };
+};
+
+export const useReportAnalytics = (bookings: Booking[], startDate?: string, endDate?: string) => {
+  void startDate;
+  void endDate;
+  return useMemo(() => buildReportAnalytics(bookings), [bookings]);
 };

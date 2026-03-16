@@ -1,5 +1,6 @@
 
 import { Booking, BookingEntity, GroupEntity, Expense, ServiceDefinition } from '../types/types';
+import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from './calculations';
 
 type LegacyBookingFields = {
   guestName?: string;
@@ -20,16 +21,16 @@ export const mergeBookingData = (
 ): Booking => {
   const legacy = b as BookingEntity & LegacyBookingFields;
 
-    const serviceTotal = (b.services || []).reduce((sum, s) => sum + (s.price * s.qty), 0);
-    const discountTotal = (b.discounts || []).reduce((sum, d) => sum + d.amount, 0);
+    const serviceTotal = getBookingServiceTotal(b);
+    const discountTotal = getBookingDiscountTotal(b);
     
     const d1 = new Date(b.checkIn);
     const d2 = new Date(b.checkOut);
     const diffTime = d2.getTime() - d1.getTime();
     const nights = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
-    const roomCharge = b.price * nights;
+    const roomCharge = normalizeMoneyAmount(b.price) * nights;
 
-    const totalAmount = roomCharge + serviceTotal + (b.surcharge || 0) - discountTotal;
+    const totalAmount = roomCharge + serviceTotal + getEffectiveBookingSurcharge(b) - discountTotal;
 
     const guestName = group ? group.customer.name : legacy.guestName || 'Unknown';
     const phone = group ? group.customer.phone : legacy.phone || '';
@@ -37,7 +38,7 @@ export const mergeBookingData = (
     const source = group ? group.customer.source : legacy.source || 'Vãng lai';
     const note = group ? group.customer.note : legacy.note || '';
     
-    const paid = legacy.paid || 0; 
+    const paid = normalizeMoneyAmount(group?.payment.paid ?? legacy.paid); 
     const paymentMethod = legacy.paymentMethod; 
 
     return {
