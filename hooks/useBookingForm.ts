@@ -96,6 +96,11 @@ export function useBookingForm({
       }
     }
 
+    if (form.status === 'checked-out' && financials.debt !== 0) {
+      alert('Không thể Check-out khi Tổng còn lại khác 0. Vui lòng thanh toán đủ trước khi trả phòng.');
+      return;
+    }
+
     onSave(buildBookingSavePayload(form, {
       isGroupMode,
       groupPrices,
