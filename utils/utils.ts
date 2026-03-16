@@ -1,6 +1,6 @@
 
-export const formatCurrency = (amount: number) => 
-  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+const currencyFormatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
+export const formatCurrency = (amount: number) => currencyFormatter.format(amount);
 
 export const formatCompactCurrency = (amount: number) => {
   if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'tr';

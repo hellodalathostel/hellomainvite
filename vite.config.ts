@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+  const buildId = process.env.BUILD_ID || Date.now().toString();
     return {
       server: {
         port: 3000,
@@ -28,6 +29,9 @@ export default defineConfig(({ mode }) => {
       optimizeDeps: {
         include: ['react', 'react-dom'],
         exclude: ['dist', 'build']
+      },
+      define: {
+        __APP_BUILD_ID__: JSON.stringify(buildId),
       }
     };
 });

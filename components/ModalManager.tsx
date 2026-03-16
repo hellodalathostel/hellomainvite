@@ -1,12 +1,11 @@
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { useUI } from '../context/UIContext';
 import { useData } from '../context/DataContext';
-import BookingModal from './modals/BookingModal';
-import ExpenseModal from './modals/ExpenseModal';
-import InvoiceModal from './modals/InvoiceModal';
-import ConfirmationModal from './modals/ConfirmationModal';
-import RoomChangeModal from './modals/RoomChangeModal';
+const BookingModal = React.lazy(() => import('./modals/BookingModal'));
+const ExpenseModal = React.lazy(() => import('./modals/ExpenseModal'));
+const InvoiceModal = React.lazy(() => import('./modals/InvoiceModal'));
+const ConfirmationModal = React.lazy(() => import('./modals/ConfirmationModal'));
 import { Booking, Expense, InvoiceData, ConfirmationData } from '../types/types';
 import type { SaveBookingPayload } from '../types/bookingForm';
 import { calculateBill } from '../utils/calculations';
@@ -113,7 +112,7 @@ const ModalManager: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
   const confirmationData = modalState.type === 'confirmation' ? modalState.data : null;
 
   return (
-    <>
+    <Suspense fallback={null}>
       <BookingModal 
         show={modalState.type === 'booking'} 
         onClose={closeModal} 
@@ -163,7 +162,7 @@ const ModalManager: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
         propertyInfo={propertyInfo}
         zaloTemplate={zaloTemplate}
       />
-    </>
+    </Suspense>
   );
 };
 

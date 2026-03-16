@@ -1,0 +1,184 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build Hello Main",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Check Dist Artifact",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"if (Test-Path dist) { Write-Output 'DIST_OK'; Get-ChildItem dist -Recurse | Select-Object -First 20 FullName } else { Write-Output 'DIST_MISSING'; exit 1 }"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Deploy Hosting Live",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$fb=Join-Path $env:APPDATA 'npm\\firebase.cmd'; & $fb deploy --only hosting"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Deploy Hosting Live Retry",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$fb=Join-Path $env:APPDATA 'npm\\firebase.cmd'; & $fb deploy --only hosting"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Deploy Hosting via FirebaseCmd",
+			"type": "shell",
+			"command": "C:\\Users\\hieun\\AppData\\Roaming\\npm\\firebase.cmd",
+			"args": [
+				"deploy",
+				"--only",
+				"hosting"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Deploy OTA DB Rules",
+			"type": "shell",
+			"command": "C:\\Users\\hieun\\AppData\\Roaming\\npm\\firebase.cmd",
+			"args": [
+				"deploy",
+				"--only",
+				"database"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Build After OTA Update",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Build Latest OTA Changes",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Deploy Live OTA Release",
+			"type": "shell",
+			"command": "C:\\Users\\hieun\\AppData\\Roaming\\npm\\firebase.cmd",
+			"args": [
+				"deploy"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Prepush Auto Checklist",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				".vscode/scripts/prepush-check.ps1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Prepush Auto Checklist (Script)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				".vscode/scripts/prepush-check.ps1"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "dev",
+			"type": "shell",
+			"command": "npm run dev",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Run Report Tests",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"test:report"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Install Vitest",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"install",
+				"-D",
+				"vitest"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Run Report Tests After Install",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"test:report"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Run Report Logic Tests",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"test:report"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Uninstall Vitest",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"uninstall",
+				"-D",
+				"vitest"
+			],
+			"isBackground": false
+		}
+	]
+}

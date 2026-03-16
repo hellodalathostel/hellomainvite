@@ -1,4 +1,5 @@
-const CACHE_NAME = 'hello-dalat-v1';
+const swVersion = new URL(self.location.href).searchParams.get('v') || 'dev';
+const CACHE_NAME = `hello-dalat-${swVersion}`;
 const SYNC_TAG = 'bookings-sync';
 
 // Install event - cache app shell

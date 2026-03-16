@@ -119,7 +119,7 @@ export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | 
 
     const loading = bookingsLoading || expensesLoading;
 
-    const actions = useMemo(() => ({
+    const bookingActions = useMemo(() => ({
         saveBooking,
         cancelBooking,
         extendBooking,
@@ -131,16 +131,6 @@ export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | 
         checkRoomCollision,
         findGuestByPhone,
         findGuestByName,
-        saveExpense,
-        deleteExpense,
-        cleanRoom,
-        addService,
-        removeService,
-        addDiscount,
-        removeDiscount,
-        saveRoom,
-        deleteRoom,
-        updateProperty,
     }), [
         saveBooking,
         cancelBooking,
@@ -153,8 +143,23 @@ export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | 
         checkRoomCollision,
         findGuestByPhone,
         findGuestByName,
+    ]);
+
+    const expenseActions = useMemo(() => ({
         saveExpense,
         deleteExpense,
+    }), [saveExpense, deleteExpense]);
+
+    const masterActions = useMemo(() => ({
+        cleanRoom,
+        addService,
+        removeService,
+        addDiscount,
+        removeDiscount,
+        saveRoom,
+        deleteRoom,
+        updateProperty,
+    }), [
         cleanRoom,
         addService,
         removeService,
@@ -164,6 +169,12 @@ export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | 
         deleteRoom,
         updateProperty,
     ]);
+
+    const actions = useMemo(() => ({
+        ...bookingActions,
+        ...expenseActions,
+        ...masterActions,
+    }), [bookingActions, expenseActions, masterActions]);
 
     // OPTIMIZED: Memoize context value to prevent unnecessary re-renders in child components
     // This is especially important since DataContext is used by many components

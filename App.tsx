@@ -2,6 +2,7 @@
 import React, { Suspense, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import ErrorBoundary from './components/ErrorBoundary';
+import type { BeforeInstallPromptEvent } from './types/types';
 
 // Custom Hooks
 import { useAuth } from './hooks/useAuth';
@@ -12,9 +13,6 @@ import { useUI } from './context/UIContext';
 import { DataProvider } from './context/DataContext';
 
 // Components (Eager Load)
-import DashboardView from './components/DashboardView';
-import CalendarView from './components/CalendarView';
-import GeneratedView from './components/GeneratedView';
 import ModalManager from './components/ModalManager';
 import ToastContainer from './components/ToastContainer';
 import AuthScreen from './components/AuthScreen';
@@ -23,6 +21,9 @@ import MobileHeader from './components/MobileHeader';
 import MobileNav from './components/MobileNav';
 
 // Components (Lazy Load)
+const DashboardView = React.lazy(() => import('./components/DashboardView'));
+const CalendarView = React.lazy(() => import('./components/CalendarView'));
+const GeneratedView = React.lazy(() => import('./components/GeneratedView'));
 const ReportView = React.lazy(() => import('./components/ReportView'));
 const SettingsView = React.lazy(() => import('./components/SettingsView'));
 
@@ -38,7 +39,7 @@ const AppContent: React.FC<{
     useSyncOnline();
 
     useEffect(() => {
-        const handler = (e: any) => {
+        const handler = (e: BeforeInstallPromptEvent) => {
             e.preventDefault();
         };
         window.addEventListener('beforeinstallprompt', handler);

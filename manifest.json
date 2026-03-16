@@ -4,19 +4,19 @@
   "description": "Ứng dụng quản lý khách sạn phục vụ du lịch",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/619/619032.png",
+      "src": "/icons/icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/619/619032.png",
+      "src": "/icons/icon-512.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/619/619032.png",
+      "src": "/icons/icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "maskable"

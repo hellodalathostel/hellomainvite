@@ -27,6 +27,9 @@ deploy-rules.ps1
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/scripts/
+!.vscode/scripts/prepush-check.ps1
 .idea
 .DS_Store
 *.suo

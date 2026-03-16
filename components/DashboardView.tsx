@@ -9,6 +9,38 @@ import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSur
 
 type RoomQuickFilter = 'all' | 'checkin' | 'checkout' | 'dirty' | 'debt';
 
+const getRoomStatusUi = (status: 'checked-in' | 'booked' | 'dirty' | 'empty') => {
+  if (status === 'checked-in') {
+    return {
+      bgClass: 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-800/60',
+      statusText: 'Đang ở',
+      statusColor: 'bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100',
+    };
+  }
+
+  if (status === 'booked') {
+    return {
+      bgClass: 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-800/60',
+      statusText: 'Đã đặt',
+      statusColor: 'bg-green-200 dark:bg-green-900 text-green-900 dark:text-green-100',
+    };
+  }
+
+  if (status === 'dirty') {
+    return {
+      bgClass: 'bg-amber-100 dark:bg-amber-900/40 border-amber-400 dark:border-amber-600/60',
+      statusText: 'Chưa dọn',
+      statusColor: 'bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100',
+    };
+  }
+
+  return {
+    bgClass: 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500',
+    statusText: 'Trống',
+    statusColor: 'text-gray-500 dark:text-gray-400',
+  };
+};
+
 const RoomCardSkeleton = () => (
     <div className="p-3 rounded-2xl border-2 border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800 shadow-sm min-h-[120px] flex flex-col justify-between animate-pulse h-full">
         <div className="flex justify-between items-start">
@@ -96,6 +128,13 @@ const DashboardView = () => {
   const { bookings, rooms, roomStates, loading, actions } = useData();
   const { searchInput, setSearchInput, activeSearchTerm, setActiveSearchTerm, openBookingModal, addToast } = useUI();
 
+  // Debounce search input
+  const [debouncedSearch, setDebouncedSearch] = useState(activeSearchTerm);
+  React.useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSearch(activeSearchTerm), 250);
+    return () => clearTimeout(handler);
+  }, [activeSearchTerm]);
+
   function getBookingTotal(booking: Booking) {
     if (typeof booking.totalAmount === 'number' && booking.totalAmount > 0) {
       return booking.totalAmount;
@@ -114,10 +153,10 @@ const DashboardView = () => {
   
   // Calculate selected date based on offset
   const selectedDate = new Date(new Date().getTime() + viewDayOffset * 86400000).toISOString().split('T')[0];
-  
+
   const filteredBookings = useMemo(() => {
-    if (!activeSearchTerm) return [];
-    const lowerTerm = activeSearchTerm.toLowerCase();
+    if (!debouncedSearch) return [];
+    const lowerTerm = debouncedSearch.toLowerCase();
     return bookings.filter(b => 
       b.guestName?.toLowerCase().includes(lowerTerm) || 
       b.phone?.toLowerCase().includes(lowerTerm) ||
@@ -125,7 +164,7 @@ const DashboardView = () => {
       b.roomId?.toString().includes(lowerTerm) ||
       b.guests?.some(g => g.name?.toLowerCase().includes(lowerTerm) || g.cccd?.includes(lowerTerm))
     );
-  }, [bookings, activeSearchTerm]);
+  }, [bookings, debouncedSearch]);
 
   const roomById = useMemo(() => {
     return rooms.reduce<Record<string, RoomDefinition>>((acc, room) => {
@@ -347,12 +386,7 @@ const DashboardView = () => {
           <div className="hidden lg:grid grid-cols-2 xl:grid-cols-4 gap-3">
             {visibleRooms.map(room => {
               const { status, data } = getRoomState(room.id);
-              let bgClass = 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500';
-              let statusText = 'Trống';
-              let statusColor = 'text-gray-500 dark:text-gray-400';
-              if (status === 'checked-in') { bgClass = 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-800/60'; statusText = 'Đang ở'; statusColor = 'bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100'; }
-              else if (status === 'booked') { bgClass = 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-800/60'; statusText = 'Đã đặt'; statusColor = 'bg-green-200 dark:bg-green-900 text-green-900 dark:text-green-100'; }
-              else if (status === 'dirty') { bgClass = 'bg-amber-100 dark:bg-amber-900/40 border-amber-400 dark:border-amber-600/60'; statusText = 'Chưa dọn'; statusColor = 'bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100'; }
+              const { bgClass, statusText, statusColor } = getRoomStatusUi(status);
               return (
                 <div key={room.id} onClick={() => status === 'dirty' ? handleCleanRoom(room.id) : openBookingModal(data || { roomId: room.id, price: room.price })} className={`relative w-full p-3 lg:p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-between min-h-[120px] h-full transition-all active:scale-95 cursor-pointer ${bgClass}`}>
                   <div className="flex justify-between items-start">
@@ -401,23 +435,7 @@ const DashboardView = () => {
             ) : (
                 visibleRooms.map(room => {
                 const { status, data } = getRoomState(room.id);
-                let bgClass = 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500';
-                let statusText = 'Trống';
-                let statusColor = 'text-gray-500 dark:text-gray-400';
-
-                if (status === 'checked-in') { 
-                    bgClass = 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-800/60'; 
-                    statusText = 'Đang ở'; 
-                    statusColor = 'bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100'; 
-                } else if (status === 'booked') { 
-                    bgClass = 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-800/60'; 
-                    statusText = 'Đã đặt'; 
-                    statusColor = 'bg-green-200 dark:bg-green-900 text-green-900 dark:text-green-100'; 
-                } else if (status === 'dirty') { 
-                    bgClass = 'bg-amber-100 dark:bg-amber-900/40 border-amber-400 dark:border-amber-600/60'; 
-                    statusText = 'Chưa dọn'; 
-                    statusColor = 'bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100'; 
-                }
+                const { bgClass, statusText, statusColor } = getRoomStatusUi(status);
 
                 return (
                     <div key={room.id} onClick={() => status === 'dirty' ? handleCleanRoom(room.id) : openBookingModal(data || { roomId: room.id, price: room.price })} className={`relative p-3 lg:p-4 rounded-2xl border-2 shadow-sm flex flex-col justify-between min-h-[120px] lg:min-h-[140px] h-full transition-all active:scale-95 cursor-pointer ${bgClass}`}>

@@ -12,10 +12,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Hello Dalat" />
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/619/619032.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
-  <!-- Import map removed for bundler build. All dependencies are resolved via the Vite build and package.json -->
-<link rel="stylesheet" href="/index.css">
+    <!-- Firebase preconnect/dns-prefetch -->
+    <link rel="preconnect" href="https://www.googleapis.com">
+    <link rel="preconnect" href="https://www.gstatic.com">
+    <link rel="dns-prefetch" href="https://www.googleapis.com">
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
+
+    <!-- Import map removed for bundler build. All dependencies are resolved via the Vite build and package.json -->
+    <link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-gray-100 text-gray-900 dark:text-white overflow-hidden">
     <div id="root"></div>

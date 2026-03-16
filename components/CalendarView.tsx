@@ -228,6 +228,15 @@ const CalendarView = () => {
       return map;
   }, [bookings, rooms]);
 
+  const lunarByDate = useMemo(() => {
+    const memo: Record<string, ReturnType<typeof getLunarDate>> = {};
+    daysInView.forEach(date => {
+      const dateStr = getLocalDateStr(date);
+      memo[dateStr] = getLunarDate(date.getDate(), date.getMonth() + 1, date.getFullYear());
+    });
+    return memo;
+  }, [daysInView]);
+
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-950">
       <div className="flex justify-between items-center p-4 border-b dark:border-gray-700 bg-white dark:bg-gray-800 shrink-0 gap-2">
@@ -283,11 +292,10 @@ const CalendarView = () => {
                 const dayOfWeek = date.getDay();
                 const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
                 const isCurrentDay = isToday(date);
-                
-                const lunar = getLunarDate(date.getDate(), date.getMonth() + 1, date.getFullYear());
+                const lunar = lunarByDate[dateStr];
                 const isSpecialLunar = lunar.day === 1 || lunar.day === 15;
                 const lunarText = lunar.day === 1 ? `${lunar.day}/${lunar.month}` : lunar.day;
-                
+
                 return (
                   <th key={dateStr} className={`w-[40px] min-w-[40px] md:w-[60px] md:min-w-[60px] lg:w-[100px] lg:min-w-[100px] p-1 border-b border-r dark:border-gray-700 text-center ${isCurrentDay ? 'bg-blue-50 dark:bg-blue-900/30' : ''} ${isWeekend ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400' : 'text-gray-800 dark:text-gray-300'}`}>
                     <div className={`text-[9px] md:text-[10px] font-bold uppercase ${isCurrentDay ? 'text-blue-700 font-black' : ''}`}>

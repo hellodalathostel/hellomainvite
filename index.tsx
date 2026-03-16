@@ -36,14 +36,14 @@ root.render(
 // Register Service Worker for PWA and offline functionality
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register(`/sw.js?v=${__APP_BUILD_ID__}`)
       .then((registration) => {
         console.log('Service Worker registered:', registration);
 
         // Handle updates - notify user when new version available
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
-          newWorker?.addEventListener('statechange', () => {
+          newWorker?.addEventListener('statechange', () => { 
             if (newWorker.state === 'activated') {
               // New version available
               console.log('New app version available');
@@ -64,7 +64,7 @@ if ('serviceWorker' in navigator) {
         console.log('Service Worker registration failed:', error);
       });
 
-    // Handle messages from service worker
+    // Handle messages from service worker 
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data && event.data.type === 'SYNC_DATA') {
         console.log('Service worker requested data sync');
