@@ -176,10 +176,9 @@ Cảm ơn bạn đã lựa chọn ${propertyInfo.name}! ❤️`;
               </span>
             </div>
           </div>
-
-          {/* Bank & QR Section */}
-          <div className="mt-8 flex gap-4 items-start bg-gray-100 p-4 border border-gray-400 rounded-2xl">
-             <div className="flex-1 text-[10px] leading-relaxed">
+          {/* Bank Information Section */}
+          <div className="mt-8 bg-gray-100 p-4 border border-gray-400 rounded-2xl">
+             <div className="text-[10px] leading-relaxed">
                 <p className="font-black text-blue-900 uppercase mb-2 border-b border-blue-200 pb-1">Thông tin thanh toán:</p>
                 <p className="font-bold text-gray-900 text-xs">{propertyInfo.bankName || 'Vietcombank (VCB)'}</p>
                 <div className="flex items-center gap-1 mt-1">
@@ -189,11 +188,6 @@ Cảm ơn bạn đã lựa chọn ${propertyInfo.name}! ❤️`;
                 <p className="text-gray-800">Chủ TK: <span className="font-black uppercase text-gray-900">{propertyInfo.bankOwner || 'Nguyễn Thanh Hiếu'}</span></p>
                 <p className="mt-2 italic font-medium text-gray-600">* Vui lòng giữ phiếu này để đối soát.</p>
              </div>
-             {propertyInfo.qrUrl && (
-                 <div className="w-20 h-20 bg-white p-1 border border-gray-400 rounded-lg shrink-0">
-                    <img src={propertyInfo.qrUrl} className="w-full h-full object-contain grayscale contrast-125" alt="Payment QR" />
-                 </div>
-             )}
           </div>
 
           <div className="text-center mt-12 space-y-2">
