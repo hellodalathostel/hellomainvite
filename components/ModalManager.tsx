@@ -73,37 +73,39 @@ const ModalManager: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
   const generateInvoice = (booking: Booking, forceGroup = false) => { 
       const bill = calculateBill(booking, bookings, rooms, forceGroup);
       const dateRange = getDocumentDateRange(booking, forceGroup);
-      openInvoiceModal({ 
-        guestName: booking.guestName, 
-        phone: booking.phone, 
-        date: new Date().toLocaleDateString('vi-VN'), 
-      checkIn: dateRange.checkIn, 
-      checkOut: dateRange.checkOut, 
-        isGroupInvoice: bill.isGroup, 
-        items: bill.items, 
-        surcharge: bill.surcharge, 
-        total: bill.total, 
-        paid: bill.paid, 
-        balance: bill.balance 
-      }); 
+      openInvoiceModal({
+        guestName: booking.guestName,
+        phone: booking.phone,
+        otaBookingNumber: booking.otaBookingNumber,
+        date: new Date().toLocaleDateString('vi-VN'),
+        checkIn: dateRange.checkIn,
+        checkOut: dateRange.checkOut,
+        isGroupInvoice: bill.isGroup,
+        items: bill.items,
+        surcharge: bill.surcharge,
+        total: bill.total,
+        paid: bill.paid,
+        balance: bill.balance
+      });
   };
 
   const generateConfirmation = (booking: Booking, forceGroup = false) => { 
       const bill = calculateBill(booking, bookings, rooms, forceGroup);
       const dateRange = getDocumentDateRange(booking, forceGroup);
-      openConfirmationModal({ 
-        guestName: booking.guestName, 
-        phone: booking.phone, 
-        date: new Date().toLocaleDateString('vi-VN'), 
-        checkIn: dateRange.checkIn, 
-        checkOut: dateRange.checkOut, 
-        isGroupInvoice: bill.isGroup, 
-        items: bill.items, 
-        surcharge: bill.surcharge, 
-        total: bill.total, 
-        paid: bill.paid, 
-        balance: bill.balance 
-      }); 
+      openConfirmationModal({
+        guestName: booking.guestName,
+        phone: booking.phone,
+        otaBookingNumber: booking.otaBookingNumber,
+        date: new Date().toLocaleDateString('vi-VN'),
+        checkIn: dateRange.checkIn,
+        checkOut: dateRange.checkOut,
+        isGroupInvoice: bill.isGroup,
+        items: bill.items,
+        surcharge: bill.surcharge,
+        total: bill.total,
+        paid: bill.paid,
+        balance: bill.balance
+      });
   };
 
   const bookingData = modalState.type === 'booking' ? modalState.data : null;

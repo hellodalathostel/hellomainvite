@@ -161,6 +161,7 @@ export interface RoomState {
 export interface InvoiceItem {
   desc: string;
   amount: number;
+  roomId?: string;
 }
 
 export interface InvoiceData {

@@ -146,10 +146,11 @@ export const calculateBill = (
         const nights = getDaysDiff(b.checkIn, b.checkOut); 
         const roomName = getRoomType(b.roomId);
         
-        items.push({ 
-            desc: `${roomName} (${formatDate(b.checkIn)} - ${formatDate(b.checkOut)})\n${formatCurrency(b.price)} x ${nights} đêm`, 
-            amount: Math.round(b.price * nights)
-        }); 
+        items.push({
+            desc: `${roomName}\n${formatDate(b.checkIn)} → ${formatDate(b.checkOut)} · ${formatCurrency(b.price)} × ${nights} đêm`,
+            amount: Math.round(b.price * nights),
+            roomId: b.roomId
+        });
         
         calculatedTotal += Math.round(b.price * nights);
 

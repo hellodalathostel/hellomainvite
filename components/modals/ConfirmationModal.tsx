@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Printer, X, Scissors, Copy } from 'lucide-react';
+import { Printer, X, Copy, MapPin, Phone } from 'lucide-react';
 import { ConfirmationData, PropertyInfo } from '../../types/types';
 import { formatCurrency } from '../../utils/utils';
 import { useUI } from '../../context/UIContext';
@@ -17,44 +17,35 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ show, onClose, da
   const { addToast } = useUI();
   if (!show || !data) return null;
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
   const handleCopyZalo = () => {
-      let text = '';
-      
-      if (zaloTemplate) {
-          text = zaloTemplate;
-          // Basic Fields
-          text = text.replace(/{guestName}/g, data.guestName);
-          text = text.replace(/{phone}/g, data.phone || '...');
-          text = text.replace(/{checkIn}/g, data.checkIn);
-          text = text.replace(/{checkOut}/g, data.checkOut);
-          
-          // Money Fields
-          text = text.replace(/{total}/g, formatCurrency(data.total));
-          text = text.replace(/{deposit}/g, formatCurrency(data.paid));
-          text = text.replace(/{balance}/g, formatCurrency(data.balance));
+    let text = '';
 
-          // Items (If template asks for it)
-          if (text.includes('{items}')) {
-              const itemsList = data.items.map(i => {
-                const isDiscount = i.amount < 0;
-                return `${isDiscount ? '🎁' : '▪️'} ${i.desc}`;
-              }).join('\n');
-              text = text.replace(/{items}/g, itemsList);
-          }
+    if (zaloTemplate) {
+      text = zaloTemplate;
+      text = text.replace(/{guestName}/g, data.guestName);
+      text = text.replace(/{phone}/g, data.phone || '...');
+      text = text.replace(/{checkIn}/g, data.checkIn);
+      text = text.replace(/{checkOut}/g, data.checkOut);
+      text = text.replace(/{total}/g, formatCurrency(data.total));
+      text = text.replace(/{deposit}/g, formatCurrency(data.paid));
+      text = text.replace(/{balance}/g, formatCurrency(data.balance));
+      if (text.includes('{items}')) {
+        const itemsList = data.items.map(i => {
+          const isDiscount = i.amount < 0;
+          return `${isDiscount ? '🎁' : '▪️'} ${i.desc}`;
+        }).join('\n');
+        text = text.replace(/{items}/g, itemsList);
+      }
+    } else {
+      const roomLines = data.items.filter(i => i.roomId);
+      const roomDesc = data.isGroupInvoice
+        ? `Đoàn (${roomLines.length} phòng)`
+        : (roomLines[0]?.desc.split('\n')[0] || 'Phòng nghỉ');
+      const mapLink = propertyInfo.address ? `https://maps.google.com/?q=${encodeURIComponent(propertyInfo.address)}` : '';
 
-      } else {
-        // Fallback Logic
-        const roomLines = data.items.filter(i => !i.desc.startsWith('+') && !i.desc.startsWith('-'));
-        const roomDesc = data.isGroupInvoice
-          ? `Đoàn (${roomLines.length} phòng)`
-          : (roomLines[0]?.desc.split('\n')[0] || 'Phòng nghỉ');
-        const mapLink = propertyInfo.address ? `https://maps.google.com/?q=${encodeURIComponent(propertyInfo.address)}` : '';
-
-        text = `🏨 *${propertyInfo.name}*
+      text = `🏨 *${propertyInfo.name}*
 📍 ${propertyInfo.address}
 ----------------------------
 👋 Khách hàng: *${data.guestName}*
@@ -69,143 +60,195 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ show, onClose, da
 ----------------------------
 🗺️ Vị trí: ${mapLink}
 Cảm ơn bạn đã lựa chọn ${propertyInfo.name}! ❤️`;
-      }
+    }
 
-      navigator.clipboard.writeText(text);
-      addToast('Đã sao chép tin nhắn Zalo!', 'success');
+    navigator.clipboard.writeText(text);
+    addToast('Đã sao chép tin nhắn Zalo!', 'success');
   };
 
+  const titleText = data.isGroupInvoice ? 'PHIẾU XÁC NHẬN ĐOÀN' : 'PHIẾU XÁC NHẬN';
+  const mapLink = propertyInfo.address ? `https://maps.google.com/?q=${encodeURIComponent(propertyInfo.address)}` : '';
+
   return (
-     <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center px-4 pt-4 pb-safe-modal backdrop-blur-md">
-      <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in duration-300">
-        
-        {/* Actions Header - Hidden on Print */}
-        <div className="p-4 bg-gray-100 border-b border-gray-300 flex justify-between items-center print:hidden">
-            <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full text-gray-700 transition-colors">
-                <X size={20}/>
+    <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center px-4 pt-4 pb-safe-modal backdrop-blur-md">
+      <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in duration-300">
+
+        {/* Action Bar — hidden on print */}
+        <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center print:hidden">
+          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full text-gray-600 transition-colors">
+            <X size={20} />
+          </button>
+          <div className="flex gap-2">
+            <button onClick={handleCopyZalo} className="bg-blue-50 text-blue-800 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:bg-blue-100 transition-all border border-blue-200">
+              <Copy size={15} /> Zalo
             </button>
-            <div className="flex gap-2">
-                <button onClick={handleCopyZalo} className="bg-blue-100 text-blue-900 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:bg-blue-200 transition-all border border-blue-200">
-                    <Copy size={16}/> Zalo
-                </button>
-                <button onClick={handlePrint} className="bg-blue-800 text-white px-3 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:bg-blue-900 transition-all shadow-lg shadow-blue-900/20">
-                    <Printer size={16}/> In phiếu
-                </button>
-            </div>
+            <button onClick={handlePrint} className="bg-green-700 text-white px-3 py-2 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:bg-green-800 transition-all shadow-md">
+              <Printer size={15} /> In phiếu
+            </button>
+          </div>
         </div>
 
-        {/* Receipt Content */}
-        <div className="p-8 overflow-y-auto custom-scrollbar font-mono text-[11px] bg-white text-gray-900 print:p-8 print-only">
-          
-          <div className="text-center mb-6">
-            <h1 className="text-base font-black uppercase tracking-tighter text-gray-900 leading-tight">{propertyInfo.name}</h1>
-            <p className="text-gray-800 mt-1 leading-relaxed font-medium">{propertyInfo.address}</p>
-            <p className="text-gray-800 font-bold">Hotline: {propertyInfo.phone}</p>
-            
-            <div className="flex items-center gap-2 my-4">
-                <div className="flex-1 h-0.5 bg-gray-400"></div>
-              <h2 className="text-xs font-black uppercase tracking-[0.1em] px-2 whitespace-nowrap text-gray-900 border-2 border-gray-900 p-1 rounded">{data.isGroupInvoice ? 'PHIẾU XÁC NHẬN ĐOÀN' : 'PHIẾU XÁC NHẬN'}</h2>
-                <div className="flex-1 h-0.5 bg-gray-400"></div>
-            </div>
-            <p className="text-[10px] font-bold text-gray-700 text-right">Ngày tạo: {data.date}</p>
-            
-            {propertyInfo.invoiceHeader && (
-                <p className="mt-2 italic text-gray-700 px-4 font-medium">"{propertyInfo.invoiceHeader}"</p>
-            )}
-          </div>
+        {/* Printable Content */}
+        <div className="overflow-y-auto custom-scrollbar bg-white print-only">
 
-          <div className="mb-6 space-y-2 pb-4 border-b-2 border-dashed border-gray-400">
-            <div className="flex justify-between items-end border-b border-gray-200 pb-1">
-                <span className="text-gray-700 font-bold">KHÁCH HÀNG:</span>
-                <span className="font-black text-gray-900 text-sm">{data.guestName}</span>
-            </div>
-            {data.phone && (
-                <div className="flex justify-between items-end">
-                    <span className="text-gray-700 font-bold">SỐ ĐIỆN THOẠI:</span>
-                    <span className="font-bold text-gray-900">{data.phone}</span>
-                </div>
-            )}
-            <div className="flex justify-between items-end">
-                <span className="text-gray-700 font-bold">CHECK-IN:</span>
-                <span className="font-bold text-gray-900">{data.checkIn} (14:00)</span>
-            </div>
-            <div className="flex justify-between items-end">
-                <span className="text-gray-700 font-bold">CHECK-OUT:</span>
-                <span className="font-bold text-gray-900">{data.checkOut} (12:00)</span>
-            </div>
-          </div>
+          {/* Green accent bar */}
+          <div className="h-1.5 bg-green-700 w-full" />
 
-          <div className="space-y-0 mb-8">
-            {/* Table Header */}
-            <div className="flex justify-between font-black text-[10px] uppercase bg-gray-200 p-2 rounded-t mb-2 border-b border-gray-400 text-gray-900">
-                <span>Thông tin phòng / DV</span>
-                <span>Giá tiền</span>
-            </div>
-            
-            {/* Table Body */}
-            <div className="space-y-3 px-2">
-                {data.items.map((item, i) => {
-                    const isDiscount = item.amount < 0;
-                    return (
-                        <div key={i} className="flex justify-between items-start gap-4 border-b border-gray-100 pb-2 last:border-0">
-                            <span className={`${isDiscount ? 'text-gray-700 italic' : 'font-bold text-gray-900'} leading-relaxed whitespace-pre-wrap`}>
-                                {item.desc}
-                            </span>
-                            <span className={`font-black whitespace-nowrap ${isDiscount ? 'text-gray-700' : 'text-gray-900'}`}>
-                                {isDiscount ? '-' : ''}{formatCurrency(Math.abs(item.amount))}
-                            </span>
-                        </div>
-                    );
-                })}
-            </div>
-          </div>
+          <div className="p-6">
 
-          <div className="border-t-2 border-gray-900 border-dashed pt-4 space-y-2">
-            <div className="flex justify-between items-end">
-              <span className="uppercase tracking-widest font-bold text-gray-800">TỔNG TIỀN DỰ KIẾN</span>
-              <span className="text-sm font-black text-gray-900">{formatCurrency(data.total)}</span>
+            {/* Header: Logo + Property Info */}
+            <div className="flex items-start gap-3 mb-5">
+              {propertyInfo.logoUrl && (
+                <img src={propertyInfo.logoUrl} alt="logo" className="h-16 w-auto object-contain flex-shrink-0" />
+              )}
+              <div className="flex-1">
+                <h1 className="text-base font-black text-gray-900 uppercase leading-tight">{propertyInfo.name}</h1>
+                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{propertyInfo.address}</p>
+                <p className="text-xs text-gray-500">Hotline: {propertyInfo.phone}</p>
+              </div>
             </div>
-            <div className="flex justify-between items-end">
-              <span className="font-bold text-gray-700">ĐÃ ĐẶT CỌC</span>
-              <span className="font-bold text-gray-900">{formatCurrency(data.paid)}</span>
-            </div>
-            <div className="flex justify-between items-center pt-3 mt-2 border-t border-gray-300">
-              <span className="text-blue-900 font-black uppercase text-xs">CÒN LẠI THANH TOÁN</span>
-              <span className="text-lg font-black text-red-700">
-                  {formatCurrency(data.balance)}
+
+            <hr className="border-gray-200 mb-5" />
+
+            {/* Title */}
+            <div className="flex justify-center mb-4">
+              <span className="border border-gray-800 px-5 py-1.5 text-[11px] font-black uppercase tracking-widest text-gray-900">
+                {titleText}
               </span>
             </div>
-          </div>
-          {/* Bank Information Section */}
-          <div className="mt-8 bg-gray-100 p-4 border border-gray-400 rounded-2xl">
-             <div className="text-[10px] leading-relaxed">
-                <p className="font-black text-blue-900 uppercase mb-2 border-b border-blue-200 pb-1">Thông tin thanh toán:</p>
-                <p className="font-bold text-gray-900 text-xs">{propertyInfo.bankName || 'Vietcombank (VCB)'}</p>
-                <div className="flex items-center gap-1 mt-1">
-                   <span className="text-gray-700">STK:</span>
-                   <span className="font-black text-base text-gray-900 tracking-wider">{propertyInfo.bankAccountNumber || '1014095502'}</span>
-                </div>
-                <p className="text-gray-800">Chủ TK: <span className="font-black uppercase text-gray-900">{propertyInfo.bankOwner || 'Nguyễn Thanh Hiếu'}</span></p>
-                <p className="mt-2 italic font-medium text-gray-600">* Vui lòng giữ phiếu này để đối soát.</p>
-             </div>
-          </div>
 
-          <div className="text-center mt-12 space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
-                ***
-            </p>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-800">
-                {propertyInfo.invoiceFooter || "Cảm ơn quý khách đã tin tưởng!"}
-            </p>
-          </div>
-          
-          <div className="mt-8 flex justify-center print:hidden">
-              <div className="border-t-2 border-dashed border-gray-400 w-full relative h-4">
-                  <div className="absolute top-[-10px] left-1/2 -translate-x-1/2 bg-white px-2 flex items-center gap-2 text-gray-500">
-                    <Scissors size={14}/>
-                    <span className="text-[9px] font-bold uppercase">Cắt phiếu</span>
-                  </div>
+            {/* Creation Date */}
+            <p className="text-right text-[10px] text-gray-400 mb-5">Ngày tạo: {data.date}</p>
+
+            {/* Guest Info */}
+            <div className="space-y-2.5 mb-5 text-[12px]">
+              <div className="flex justify-between items-baseline">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">KHÁCH HÀNG</span>
+                <span className="font-black text-gray-900 text-sm">{data.guestName}</span>
               </div>
+              {data.phone && (
+                <div className="flex justify-between items-baseline">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">SỐ ĐIỆN THOẠI</span>
+                  <span className="font-semibold text-gray-800">{data.phone}</span>
+                </div>
+              )}
+              {data.otaBookingNumber && (
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">BOOKING NO.</span>
+                  <span className="bg-green-700 text-white text-[10px] font-black px-2 py-0.5 rounded">
+                    {data.otaBookingNumber}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-baseline">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">CHECK-IN</span>
+                <span className="font-semibold text-gray-800">{data.checkIn} (14:00)</span>
+              </div>
+              <div className="flex justify-between items-baseline">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">CHECK-OUT</span>
+                <span className="font-semibold text-gray-800">{data.checkOut} (12:00)</span>
+              </div>
+            </div>
+
+            <hr className="border-gray-200 mb-4" />
+
+            {/* Section: Room Info */}
+            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-3">THÔNG TIN PHÒNG</p>
+
+            <div className="space-y-2 mb-5">
+              {data.items.map((item, i) => {
+                const lines = item.desc.split('\n');
+
+                if (item.roomId) {
+                  return (
+                    <div key={i} className="border border-gray-200 rounded-lg p-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-green-700 text-white text-[9px] font-black px-1.5 py-0.5 rounded flex-shrink-0">
+                            {item.roomId}
+                          </span>
+                          <span className="font-bold text-[13px] text-gray-900">{lines[0]}</span>
+                        </div>
+                        <span className="font-black text-[13px] text-gray-900 whitespace-nowrap">
+                          {formatCurrency(item.amount)}
+                        </span>
+                      </div>
+                      {lines[1] && (
+                        <p className="text-[10px] text-gray-500 mt-1">{lines[1]}</p>
+                      )}
+                    </div>
+                  );
+                } else if (item.amount < 0) {
+                  return (
+                    <div key={i} className="flex justify-between items-center text-[12px] px-1">
+                      <span className="text-gray-500 italic">{item.desc.replace(/^- Ưu đãi: /, '')}</span>
+                      <span className="text-green-700 font-bold whitespace-nowrap">− {formatCurrency(Math.abs(item.amount))}</span>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div key={i} className="flex justify-between items-center text-[12px] px-1">
+                      <span className="text-gray-700">{item.desc.replace(/^\+ DV: /, '')}</span>
+                      <span className="font-semibold text-gray-800 whitespace-nowrap">{formatCurrency(item.amount)}</span>
+                    </div>
+                  );
+                }
+              })}
+            </div>
+
+            <hr className="border-gray-200 mb-4" />
+
+            {/* Summary */}
+            <div className="space-y-2 mb-4 text-[12px]">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Tổng tiền dự kiến</span>
+                <span className="font-semibold text-gray-800">{formatCurrency(data.total)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-green-700 font-semibold">Đã đặt cọc</span>
+                <span className="text-green-700 font-semibold">− {formatCurrency(data.paid)}</span>
+              </div>
+            </div>
+
+            {/* Balance Box */}
+            <div className="border border-gray-300 rounded-lg p-3 flex justify-between items-center mb-5">
+              <span className="font-black text-[11px] uppercase tracking-wider text-gray-800">CÒN LẠI THANH TOÁN</span>
+              <span className="font-black text-xl text-red-600">{formatCurrency(data.balance)}</span>
+            </div>
+
+            {/* Directions Section */}
+            <div className="border border-gray-200 rounded-lg p-4 mb-6">
+              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-3">HƯỚNG DẪN ĐẾN HOSTEL</p>
+              {propertyInfo.invoiceHeader && (
+                <p className="text-[12px] text-gray-700 leading-relaxed mb-3">{propertyInfo.invoiceHeader}</p>
+              )}
+              {mapLink && (
+                <div className="flex items-start gap-2 mb-2">
+                  <MapPin size={13} className="text-gray-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <span className="text-[11px] font-bold text-gray-700">Google Maps: </span>
+                    <a href={mapLink} className="text-[11px] text-blue-600 underline break-all">{mapLink}</a>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Phone size={13} className="text-gray-500 flex-shrink-0" />
+                <span className="text-[11px] text-gray-700">
+                  <span className="font-bold">Hotline / Zalo: </span>{propertyInfo.phone}
+                </span>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <p className="text-center italic text-[11px] text-gray-500 mb-5">
+              {propertyInfo.invoiceFooter || 'Cảm ơn quý khách đã tin tưởng!'}
+            </p>
+
+            {/* Cut Line */}
+            <div className="border-t border-dashed border-gray-300 pt-2 flex items-center justify-center print:hidden">
+              <span className="text-[9px] text-gray-400 font-bold tracking-widest">→ CẮT PHIẾU</span>
+            </div>
+
           </div>
         </div>
       </div>
