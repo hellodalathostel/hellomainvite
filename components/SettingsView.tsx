@@ -7,6 +7,19 @@ import { useUI } from '../context/UIContext';
 import { useData } from '../context/DataContext';
 import ExpensesList from './ExpensesList';
 
+const ToggleSettingsMobile: React.FC = () => {
+    const { showSettingsOnMobile, setShowSettingsOnMobile } = useUI();
+    return (
+        <button
+            onClick={() => setShowSettingsOnMobile(!showSettingsOnMobile)}
+            className={`w-14 h-8 rounded-full p-1 flex items-center transition-colors ${showSettingsOnMobile ? 'bg-blue-600 justify-end' : 'bg-gray-300 justify-start'}`}
+            aria-pressed={showSettingsOnMobile}
+        >
+            <span className={`w-6 h-6 rounded-full bg-white shadow`} />
+        </button>
+    );
+};
+
 const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) => {
     const { addToast, openExpenseModal, openBookingModal, isDarkMode, toggleTheme, deferredPrompt, setDeferredPrompt } = useUI();
     const { 
@@ -42,7 +55,6 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
         bankAccountNumber: propertyInfo.bankAccountNumber || '',
         bankOwner: propertyInfo.bankOwner || '',
     });
-    const [activeSettingsTab, setActiveSettingsTab] = useState('general');
 
     useEffect(() => {
         setBankForm({
@@ -51,20 +63,6 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
             bankOwner: propertyInfo.bankOwner || '',
         });
     }, [propertyInfo.bankName, propertyInfo.bankAccountNumber, propertyInfo.bankOwner]);
-
-    // Toggle component for mobile settings visibility
-    const ToggleSettingsMobile: React.FC = () => {
-        const { showSettingsOnMobile, setShowSettingsOnMobile } = useUI();
-        return (
-            <button
-                onClick={() => setShowSettingsOnMobile(!showSettingsOnMobile)}
-                className={`w-14 h-8 rounded-full p-1 flex items-center transition-colors ${showSettingsOnMobile ? 'bg-blue-600 justify-end' : 'bg-gray-300 justify-start'}`}
-                aria-pressed={showSettingsOnMobile}
-            >
-                <span className={`w-6 h-6 rounded-full bg-white shadow`} />
-            </button>
-        );
-    };
 
     const handleAddRoom = () => {
         if (!newRoom.id || !newRoom.price) return;

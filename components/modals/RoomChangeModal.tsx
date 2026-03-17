@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ArrowRightLeft, PlusCircle, AlertTriangle, Calendar, BedDouble } from 'lucide-react';
 import { Booking, RoomDefinition } from '../../types/types';
-import { getDaysDiff, addDays, formatDate } from '../../utils/utils';
+import { formatDate } from '../../utils/utils';
 
 export type RoomChangeMode = 'add_to_single' | 'add_to_group' | 'change_room';
 

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { Booking } from '../types/types';
-import { getDaysDiff } from '../utils/utils.ts';
-import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from '../utils/calculations.ts';
+import { getDaysDiff } from '../utils/utils';
+import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from '../utils/calculations';
 
 export interface DailyRevenueData {
   date: string;

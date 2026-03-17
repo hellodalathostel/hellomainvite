@@ -256,7 +256,11 @@ export default function BookingModal({
                   <h4 className="text-red-700 dark:text-red-400 font-bold mb-2 flex items-center gap-2"><AlertTriangle size={18}/> Xác nhận xóa?</h4>
                   <p className="text-xs text-red-600/80 mb-4">Hành động này không thể hoàn tác.</p>
                   <div className="flex gap-3">
-                    <button onClick={() => { onDelete(form.id, confirmDelete === 'group', form.groupId); onClose(); }} className="flex-1 py-2 bg-red-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-500/30">Xóa Ngay</button>
+                    <button onClick={() => {
+                      if (!form.id) return;
+                      onDelete(form.id, confirmDelete === 'group', form.groupId);
+                      onClose();
+                    }} className="flex-1 py-2 bg-red-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-500/30">Xóa Ngay</button>
                     <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2 bg-white text-gray-700 border rounded-xl text-xs font-bold">Hủy</button>
                   </div>
                 </div>

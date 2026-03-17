@@ -1,11 +1,11 @@
 
 import { useState, useEffect } from 'react';
 import { ref, onValue, set, update, remove } from "firebase/database";
-import { db } from '../config/firebaseConfig';
+import { db } from '../config/database';
 import { RoomState, ServiceDefinition, PropertyInfo, RoomDefinition, DiscountDefinition } from '../types/types';
 import { DEFAULT_SERVICES, PROPERTY_INFO as DEFAULT_PROPERTY_INFO, DEFAULT_ROOM_DATA, PRESET_DISCOUNTS, DEFAULT_ZALO_TEMPLATE } from '../config/constants';
 
-export const useMasterData = (user: { uid: string } | null) => {
+export const useMasterData = (user: { uid: string } | null, enabled = true) => {
   const [roomStates, setRoomStates] = useState<RoomState>({});
   const [masterServices, setMasterServices] = useState<ServiceDefinition[]>(DEFAULT_SERVICES);
   const [masterDiscounts, setMasterDiscounts] = useState<DiscountDefinition[]>([]);
@@ -16,6 +16,21 @@ export const useMasterData = (user: { uid: string } | null) => {
   useEffect(() => {
     if (!user) {
       setRoomStates({});
+      setMasterServices(DEFAULT_SERVICES);
+      setMasterDiscounts([]);
+      setRooms(DEFAULT_ROOM_DATA);
+      setZaloTemplate(DEFAULT_ZALO_TEMPLATE);
+      setPropertyInfo(DEFAULT_PROPERTY_INFO);
+      return;
+    }
+
+    if (!enabled) {
+      setRoomStates({});
+      setMasterServices(DEFAULT_SERVICES);
+      setMasterDiscounts([]);
+      setRooms(DEFAULT_ROOM_DATA);
+      setZaloTemplate(DEFAULT_ZALO_TEMPLATE);
+      setPropertyInfo(DEFAULT_PROPERTY_INFO);
       return;
     }
 
@@ -77,7 +92,7 @@ export const useMasterData = (user: { uid: string } | null) => {
       unsubProperty();
       unsubTemplate();
     };
-  }, [user]);
+  }, [enabled, user]);
 
   const cleanRoom = async (roomId: string) => { 
     if (!window.confirm(`Xác nhận đã dọn sạch phòng ${roomId}?`)) return; 

@@ -2,13 +2,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ref, onValue, set, remove } from "firebase/database";
 import type { User as FirebaseUser } from 'firebase/auth';
-import { db } from '../config/firebaseConfig';
+import { db } from '../config/database';
 import { Expense } from '../types/types';
 import { expenseConverter } from '../utils/dataConverters';
 import { useAudit } from './useAudit';
 import type { SaveExpensePayload } from '../types/bookingForm';
 
-export const useExpenses = (user: FirebaseUser | null) => {
+export const useExpenses = (user: FirebaseUser | null, enabled = true) => {
   const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const { logAction } = useAudit(user);
@@ -21,6 +21,11 @@ export const useExpenses = (user: FirebaseUser | null) => {
   useEffect(() => {
     if (!user) {
       setAllExpenses([]);
+      setLoading(false);
+      return;
+    }
+
+    if (!enabled) {
       setLoading(false);
       return;
     }
@@ -44,7 +49,7 @@ export const useExpenses = (user: FirebaseUser | null) => {
     });
 
     return () => unsubExpenses();
-  }, [user]);
+  }, [enabled, user]);
 
   const saveExpense = async (data: SaveExpensePayload) => {
     const id = data.id || Date.now().toString();

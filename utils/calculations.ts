@@ -1,6 +1,6 @@
 
 import type { Booking, RoomDefinition, InvoiceItem } from '../types/types';
-import { getDaysDiff, formatDate, formatCurrency } from './utils.ts';
+import { getDaysDiff, formatDate, formatCurrency } from './utils';
 
 export const CARD_FEE_RATE = 0.04;
 export const CARD_FEE_SERVICE_NAME = 'Phí quẹt thẻ (4%)';

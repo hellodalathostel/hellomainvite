@@ -1,10 +1,11 @@
 
-import React, { createContext, useContext, useMemo, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { useBookings } from '../hooks/useBookings';
 import type { AddRoomPayload } from '../hooks/useBookings';
 import { useExpenses } from '../hooks/useExpenses';
 import { useMasterData } from '../hooks/useMasterData';
+import { useUI } from './UIContext';
 import { Booking, Expense, RoomDefinition, ServiceDefinition, DiscountDefinition, RoomState, PropertyInfo } from '../types/types';
 import { PropertyUpdates, SaveBookingPayload, SaveExpensePayload, SuggestedGuest } from '../types/bookingForm';
 
@@ -54,7 +55,24 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | null }> = ({ children, user }) => {
+    const { activeTab } = useUI();
     const [viewDate, setViewDate] = useState(new Date());
+    const [masterDataReady, setMasterDataReady] = useState(false);
+
+    useEffect(() => {
+        if (!user) {
+            setMasterDataReady(false);
+            return;
+        }
+
+        const timer = window.setTimeout(() => {
+            setMasterDataReady(true);
+        }, 400);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [user]);
 
     const queryDates = useMemo(() => {
         const y = viewDate.getFullYear();
@@ -71,9 +89,11 @@ export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | 
         return { start: fmt(start), end: fmt(end) };
     }, [viewDate]);
 
+    const expensesEnabled = activeTab === 'reports' || activeTab === 'settings';
+
     const bookingHook = useBookings(user, queryDates.start, queryDates.end);
-    const expenseHook = useExpenses(user);
-    const masterDataHook = useMasterData(user);
+    const expenseHook = useExpenses(user, expensesEnabled);
+    const masterDataHook = useMasterData(user, masterDataReady);
 
     const {
         bookings,

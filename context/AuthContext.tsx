@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User as FirebaseUser } from 'firebase/auth';
-import { ref, get, child } from 'firebase/database';
-import { auth, db } from '../config/firebaseConfig';
+import { auth, getDb } from '../config/firebaseConfig';
 import type { UserRole } from '../types/types';
 
 interface AuthContextType {
@@ -38,6 +37,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
           }
 
+          const [{ ref, get, child }, db] = await Promise.all([
+            import('firebase/database'),
+            getDb(),
+          ]);
           const snapshot = await get(child(ref(db), `users/${currentUser.uid}`));
           let role: UserRole = 'staff';
 

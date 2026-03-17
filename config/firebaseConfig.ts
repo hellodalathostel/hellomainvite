@@ -1,7 +1,7 @@
 
 import { initializeApp } from "firebase/app";
-import { getDatabase } from "firebase/database";
 import { getAuth } from "firebase/auth";
+import type { Database } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -14,7 +14,16 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
+let dbPromise: Promise<Database> | null = null;
+
+export const getDb = async (): Promise<Database> => {
+  if (!dbPromise) {
+    dbPromise = import('firebase/database').then(({ getDatabase }) => getDatabase(app));
+  }
+
+  return dbPromise;
+};
 
 if (typeof window !== 'undefined' && import.meta.env.PROD && firebaseConfig.measurementId) {
   import('firebase/analytics')
@@ -28,5 +37,4 @@ if (typeof window !== 'undefined' && import.meta.env.PROD && firebaseConfig.meas
     });
 }
 
-export const db = getDatabase(app);
 export const auth = getAuth(app);

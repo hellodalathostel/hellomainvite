@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ref, onValue, update, query, orderByChild, startAt, endAt, get, child, push } from "firebase/database";
 import type { User as FirebaseUser } from 'firebase/auth';
-import { db } from '../config/firebaseConfig';
+import { db } from '../config/database';
 import type { Booking, BookingEntity, GroupEntity, Service, Discount } from '../types/types';
 import { getDaysDiff, addDays, formatCurrency, isOverlap, now } from '../utils/utils';
 import { mergeBookingData } from '../utils/dataConverters';
@@ -429,7 +429,6 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
         groupId = crypto.randomUUID();
         isMigration = true;
         updates[`bookings/${data.id}/groupId`] = groupId;
-        console.log(`Auto-migrated booking ${data.id} to group ${groupId}`);
     }
 
     // AUDIT LOGGING - OPTIMIZED: Compare with already-loaded bookings to avoid extra get() call
@@ -473,11 +472,12 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
                 // Will set full object later after accumulating roomIds
             } else if (isMigration) {
                 // Migration: Set full object now
+                const bookingId = data.id || crypto.randomUUID();
                 updates[`groups/${groupId}`] = {
                     id: groupId,
                     customer,
                     payment,
-                    roomIds: { [data.id]: data.roomId },
+                    roomIds: { [bookingId]: data.roomId },
                     status: 'active',
                     createdAt: data.createdAt || timestamp,
                     updatedAt: timestamp
@@ -491,11 +491,6 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
                 updates[`groups/${groupId}/updatedAt`] = timestamp;
             }
         }
-
-    // 2. Booking Data & Linkage
-    if (isNewGroup) {
-        // Case A: New Group
-    }
 
     // 2. Booking Data & Linkage
     if (isNewGroup) {

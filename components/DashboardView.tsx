@@ -2,10 +2,21 @@
 import React, { useMemo, useState } from 'react';
 import { Search, X, Users, StickyNote, Brush, LogIn, LogOut as LogoutIcon, ChevronRight } from 'lucide-react';
 import { Booking, RoomDefinition } from '../types/types';
-import { formatCurrency, formatCompactCurrency, formatDate } from '../utils/utils';
+import { formatCurrency, formatCompactCurrency, formatDate, getDaysDiff } from '../utils/utils';
 import { useData } from '../context/DataContext';
 import { useUI } from '../context/UIContext';
 import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from '../utils/calculations';
+
+function getBookingTotal(booking: Booking) {
+  if (typeof booking.totalAmount === 'number' && booking.totalAmount > 0) {
+    return booking.totalAmount;
+  }
+  const nights = getDaysDiff(booking.checkIn, booking.checkOut);
+  const roomTotal = normalizeMoneyAmount(booking.price) * nights;
+  const serviceTotal = getBookingServiceTotal(booking);
+  const discountTotal = getBookingDiscountTotal(booking);
+  return roomTotal + serviceTotal + getEffectiveBookingSurcharge(booking) - discountTotal;
+}
 
 type RoomQuickFilter = 'all' | 'checkin' | 'checkout' | 'dirty' | 'debt';
 
@@ -135,18 +146,6 @@ const DashboardView = () => {
     return () => clearTimeout(handler);
   }, [activeSearchTerm]);
 
-  function getBookingTotal(booking: Booking) {
-    if (typeof booking.totalAmount === 'number' && booking.totalAmount > 0) {
-      return booking.totalAmount;
-    }
-
-    const nights = getDaysDiff(booking.checkIn, booking.checkOut);
-    const roomTotal = normalizeMoneyAmount(booking.price) * nights;
-    const serviceTotal = getBookingServiceTotal(booking);
-    const discountTotal = getBookingDiscountTotal(booking);
-    return roomTotal + serviceTotal + getEffectiveBookingSurcharge(booking) - discountTotal;
-  }
-  
   const today = new Date().toISOString().split('T')[0];
   const [viewDayOffset, setViewDayOffset] = useState(0); // 0 = today, 1 = tomorrow
   const [roomQuickFilter, setRoomQuickFilter] = useState<RoomQuickFilter>('all');

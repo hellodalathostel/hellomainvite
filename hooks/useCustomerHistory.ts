@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ref, onValue, update, push, get, remove } from "firebase/database";
-import { db } from '../config/firebaseConfig';
+import { db } from '../config/database';
 import type { CustomerRecord, CustomerUsageRecord } from '../types/types';
 import { now } from '../utils/utils';
+
+const PAGE_SIZE = 50;
 
 export const useCustomerHistory = () => {
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
@@ -10,16 +12,13 @@ export const useCustomerHistory = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const usageCacheRef = useRef<Map<string, CustomerUsageRecord[]>>(new Map());
-  const pageSize = 50; // Load 50 customers per page
 
   // Memoized paginated customers for infinite scroll
   const paginatedCustomers = useMemo(() => {
-    return customers.slice(0, (currentPage + 1) * pageSize);
-  }, [customers, currentPage, pageSize]);
+    return customers.slice(0, (currentPage + 1) * PAGE_SIZE);
+  }, [customers, currentPage]);
 
-  const hasMore = useMemo(() => {
-    return paginatedCustomers.length < customers.length;
-  }, [paginatedCustomers.length, customers.length]);
+  const hasMore = paginatedCustomers.length < customers.length;
 
   const searchableCustomers = useMemo(() => {
     return customers.map((customer) => ({
@@ -262,9 +261,9 @@ export const useCustomerHistory = () => {
 
           if (needsUpdate) {
             await saveCustomer({
-              id: existing.id,
               ...existing,
               ...updates,
+              id: existing.id,
             });
             synced++;
           }
@@ -295,7 +294,7 @@ export const useCustomerHistory = () => {
     customersMap,
     loading,
     hasMore,
-    loadMore: () => setCurrentPage(prev => prev + 1), // Load next page
+    loadMore: () => setCurrentPage(prev => prev + 1),
     saveCustomer,
     deleteCustomer,
     recordCustomerUsage,

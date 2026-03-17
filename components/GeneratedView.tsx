@@ -5,6 +5,7 @@ import { Booking } from '../types/types';
 import { formatDate, getDaysDiff, formatCurrency } from '../utils/utils';
 import { useUI } from '../context/UIContext';
 import { useData } from '../context/DataContext';
+import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from '../utils/calculations';
 
 const GeneratedView = () => {
     const { bookings, propertyInfo } = useData();

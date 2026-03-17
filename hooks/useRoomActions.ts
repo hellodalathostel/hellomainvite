@@ -107,6 +107,9 @@ export function useRoomActions({
     if (form.groupId) {
       await addRoomToGroup(form.groupId, payload);
     } else {
+      if (!form.id) {
+        throw new Error('Không tìm thấy booking gốc để thêm phòng.');
+      }
       await convertSingleToGroup(form.id, payload);
     }
     setShowAddRoom(false);

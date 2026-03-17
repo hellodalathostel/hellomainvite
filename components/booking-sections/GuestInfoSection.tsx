@@ -30,8 +30,8 @@ const GuestInfoSection: React.FC<GuestInfoSectionProps> = ({
     if (!suggestedGuest) return;
     setForm((prev: BookingFormData) => ({
       ...prev,
-      guestName: suggestedGuest.guestName,
-      phone: suggestedGuest.phone,
+      guestName: suggestedGuest.guestName ?? prev.guestName,
+      phone: suggestedGuest.phone ?? prev.phone,
       otaBookingNumber: suggestedGuest.otaBookingNumber || prev.otaBookingNumber,
       source: suggestedGuest.source || prev.source,
     }));
@@ -98,7 +98,7 @@ const GuestInfoSection: React.FC<GuestInfoSectionProps> = ({
               placeholder="Nguyễn Văn A"
             />
           </div>
-          {suggestedGuest && suggestedGuest.phone && form.guestName && suggestedGuest.guestName.toLowerCase().includes(form.guestName.toLowerCase()) && (
+          {suggestedGuest && suggestedGuest.phone && suggestedGuest.guestName && form.guestName && suggestedGuest.guestName.toLowerCase().includes(form.guestName.toLowerCase()) && (
             <button onClick={applySuggestion} className="flex items-center gap-1.5 text-[10px] font-bold text-blue-700 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-full mt-2 hover:bg-blue-100 transition-colors">
               <History size={12} /> {suggestedGuest.phone}
             </button>

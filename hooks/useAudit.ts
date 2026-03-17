@@ -1,7 +1,7 @@
 
 import { ref, push } from "firebase/database";
 import type { User as FirebaseUser } from 'firebase/auth';
-import { db } from '../config/firebaseConfig';
+import { db } from '../config/database';
 import { AuditLog } from '../types/types';
 
 type AuditLogPayload = Omit<AuditLog, 'id'>;
