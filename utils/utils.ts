@@ -2,6 +2,41 @@
 const currencyFormatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' });
 export const formatCurrency = (amount: number) => currencyFormatter.format(amount);
 
+export const buildVietQrImageUrl = ({
+  bankCode,
+  bankAccountNumber,
+  bankOwner,
+  amount,
+  addInfo,
+}: {
+  bankCode?: string;
+  bankAccountNumber?: string;
+  bankOwner?: string;
+  amount?: number;
+  addInfo?: string;
+}) => {
+  const normalizedBankCode = bankCode?.trim();
+  const normalizedAccountNumber = (bankAccountNumber || '').replace(/\s+/g, '');
+
+  if (!normalizedBankCode || !normalizedAccountNumber) {
+    return undefined;
+  }
+
+  const query = new URLSearchParams();
+  if (amount && amount > 0) {
+    query.set('amount', String(Math.round(amount)));
+  }
+  if (addInfo?.trim()) {
+    query.set('addInfo', addInfo.trim());
+  }
+  if (bankOwner?.trim()) {
+    query.set('accountName', bankOwner.trim().toUpperCase());
+  }
+
+  const queryString = query.toString();
+  return `https://img.vietqr.io/image/${normalizedBankCode}-${normalizedAccountNumber}-compact.png${queryString ? `?${queryString}` : ''}`;
+};
+
 export const formatCompactCurrency = (amount: number) => {
   if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'tr';
   if (amount >= 1000) return (amount / 1000).toFixed(0) + 'k';

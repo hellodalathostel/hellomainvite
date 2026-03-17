@@ -76,7 +76,8 @@ export const useMasterData = (user: { uid: string } | null, enabled = true) => {
 
     const unsubProperty = onValue(ref(db, 'app_data/property_info'), (snapshot) => {
       const data = snapshot.val();
-      if (data) setPropertyInfo(data as PropertyInfo);
+      if (data) setPropertyInfo({ ...DEFAULT_PROPERTY_INFO, ...(data as PropertyInfo) });
+      else setPropertyInfo(DEFAULT_PROPERTY_INFO);
     });
 
     const unsubTemplate = onValue(ref(db, 'app_data/templates/zalo'), (snapshot) => {

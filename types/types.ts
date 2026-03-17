@@ -195,6 +195,7 @@ export interface PropertyInfo {
   phone: string;
   logoUrl?: string;
   qrUrl?: string;
+  bankCode?: string;
   bankName?: string;
   bankAccountNumber?: string;
   bankOwner?: string;

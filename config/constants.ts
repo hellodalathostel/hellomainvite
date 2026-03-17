@@ -1,10 +1,54 @@
 
 import { PropertyInfo, RoomDefinition, ServiceDefinition, User, Discount, Booking } from '../types/types';
 
+export interface VietQrBankOption {
+  code: string;
+  label: string;
+  shortName: string;
+  aliases: string[];
+}
+
+export const VIETQR_BANKS: VietQrBankOption[] = [
+  { code: '970436', label: 'Vietcombank (VCB)', shortName: 'VCB', aliases: ['vietcombank', 'vcb'] },
+  { code: '970422', label: 'MB Bank (MBBank)', shortName: 'MBBank', aliases: ['mb bank', 'mbbank', 'mb'] },
+  { code: '970407', label: 'Techcombank (TCB)', shortName: 'TCB', aliases: ['techcombank', 'tcb'] },
+  { code: '970418', label: 'BIDV', shortName: 'BIDV', aliases: ['bidv', 'ngan hang dau tu va phat trien'] },
+  { code: '970415', label: 'VietinBank', shortName: 'VietinBank', aliases: ['vietinbank', 'ctg'] },
+  { code: '970405', label: 'Agribank', shortName: 'Agribank', aliases: ['agribank', 'vbard'] },
+  { code: '970432', label: 'VPBank', shortName: 'VPBank', aliases: ['vpbank', 'vpb'] },
+  { code: '970416', label: 'ACB', shortName: 'ACB', aliases: ['acb', 'asia commercial bank'] },
+  { code: '970423', label: 'TPBank', shortName: 'TPBank', aliases: ['tpbank', 'tien phong bank'] },
+  { code: '970403', label: 'Sacombank', shortName: 'Sacombank', aliases: ['sacombank', 'stb'] },
+];
+
+const normalizeBankValue = (value?: string) =>
+  (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+export const findVietQrBank = (bankCode?: string, bankName?: string) => {
+  if (bankCode) {
+    const byCode = VIETQR_BANKS.find((bank) => bank.code === bankCode);
+    if (byCode) return byCode;
+  }
+
+  const normalizedName = normalizeBankValue(bankName);
+  if (!normalizedName) return undefined;
+
+  return VIETQR_BANKS.find((bank) =>
+    normalizeBankValue(bank.label) === normalizedName ||
+    normalizeBankValue(bank.shortName) === normalizedName ||
+    bank.aliases.some((alias) => normalizeBankValue(alias) === normalizedName)
+  );
+};
+
 export const PROPERTY_INFO: PropertyInfo = {
   name: "Hello Dalat Hostel",
   address: "33/18/2 Phan Đình Phùng, Phường 1, Đà Lạt",
   phone: "0969 975 935",
+  bankCode: '970436',
   bankName: 'Vietcombank (VCB)',
   bankAccountNumber: '1014095502',
   bankOwner: 'Nguyen Thanh Hieu',

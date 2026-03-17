@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag, Plus, Trash2, Tag, Settings, Bed, ChevronDown, ArrowRightCircle, Clock, Users, Moon, Sun, Download, CreditCard } from 'lucide-react';
 import { RoomDefinition, ServiceDefinition, DiscountDefinition, Booking, BeforeInstallPromptEvent } from '../types/types';
+import { findVietQrBank, VIETQR_BANKS } from '../config/constants';
 import { formatCurrency } from '../utils/utils';
 import CurrencyInput from './CurrencyInput';
 import { useUI } from '../context/UIContext';
@@ -50,19 +51,23 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     const [newService, setNewService] = useState({ name: '', price: 0 });
     const [newDiscount, setNewDiscount] = useState({ description: '', amount: 0 });
     const [newRoom, setNewRoom] = useState<Partial<RoomDefinition>>({ id: '', name: '', price: 0 });
+    const resolvedBank = findVietQrBank(propertyInfo.bankCode, propertyInfo.bankName);
     const [bankForm, setBankForm] = useState({
-        bankName: propertyInfo.bankName || '',
+        bankCode: resolvedBank?.code || propertyInfo.bankCode || '',
+        bankName: resolvedBank?.label || propertyInfo.bankName || '',
         bankAccountNumber: propertyInfo.bankAccountNumber || '',
         bankOwner: propertyInfo.bankOwner || '',
     });
 
     useEffect(() => {
+        const nextBank = findVietQrBank(propertyInfo.bankCode, propertyInfo.bankName);
         setBankForm({
-            bankName: propertyInfo.bankName || '',
+            bankCode: nextBank?.code || propertyInfo.bankCode || '',
+            bankName: nextBank?.label || propertyInfo.bankName || '',
             bankAccountNumber: propertyInfo.bankAccountNumber || '',
             bankOwner: propertyInfo.bankOwner || '',
         });
-    }, [propertyInfo.bankName, propertyInfo.bankAccountNumber, propertyInfo.bankOwner]);
+    }, [propertyInfo.bankCode, propertyInfo.bankName, propertyInfo.bankAccountNumber, propertyInfo.bankOwner]);
 
     const handleAddRoom = () => {
         if (!newRoom.id || !newRoom.price) return;
@@ -79,12 +84,23 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     };
 
     const handleSaveBankInfo = async () => {
+        const selectedBank = VIETQR_BANKS.find((bank) => bank.code === bankForm.bankCode);
         await actions.updateProperty({
-            bankName: bankForm.bankName.trim(),
+            bankCode: bankForm.bankCode,
+            bankName: selectedBank?.label || bankForm.bankName.trim(),
             bankAccountNumber: bankForm.bankAccountNumber.trim(),
             bankOwner: bankForm.bankOwner.trim(),
         });
         addToast('Đã cập nhật thông tin tài khoản ngân hàng', 'success');
+    };
+
+    const handleBankSelect = (bankCode: string) => {
+        const selectedBank = VIETQR_BANKS.find((bank) => bank.code === bankCode);
+        setBankForm(prev => ({
+            ...prev,
+            bankCode,
+            bankName: selectedBank?.label || prev.bankName,
+        }));
     };
 
     return (
@@ -274,12 +290,16 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                <input
-                                    value={bankForm.bankName}
-                                    onChange={(e) => setBankForm(prev => ({ ...prev, bankName: e.target.value }))}
-                                    placeholder="Tên ngân hàng"
-                                    className="p-2 border rounded-lg outline-none text-sm text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                />
+                                <select
+                                    value={bankForm.bankCode}
+                                    onChange={(e) => handleBankSelect(e.target.value)}
+                                    className="p-2 border rounded-lg outline-none text-sm text-gray-900 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                >
+                                    <option value="">Chọn ngân hàng để tạo VietQR</option>
+                                    {VIETQR_BANKS.map((bank) => (
+                                        <option key={bank.code} value={bank.code}>{bank.label}</option>
+                                    ))}
+                                </select>
                                 <input
                                     value={bankForm.bankAccountNumber}
                                     onChange={(e) => setBankForm(prev => ({ ...prev, bankAccountNumber: e.target.value }))}
@@ -293,6 +313,10 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                     className="p-2 border rounded-lg outline-none text-sm text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 />
                             </div>
+
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                QR trong hóa đơn sẽ tự tạo theo số còn lại phải trả. Nếu cấu hình cũ chưa có mã ngân hàng, hãy chọn lại ngân hàng ở đây để bật VietQR tự động.
+                            </p>
 
                             <div className="flex justify-end">
                                 <button

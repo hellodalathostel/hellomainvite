@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
-import { Printer, X, Copy, Globe } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Printer, X, Copy, Globe, Maximize2 } from 'lucide-react';
 import { InvoiceData, PropertyInfo } from '../../types/types';
-import { formatCurrency } from '../../utils/utils';
+import { buildVietQrImageUrl, formatCurrency } from '../../utils/utils';
 import { useUI } from '../../context/UIContext';
+import FullScreenQrModal from './FullScreenQrModal';
 
 interface InvoiceModalProps {
   show: boolean;
@@ -57,6 +58,21 @@ const INVOICE_TEXT = {
 const InvoiceModal: React.FC<InvoiceModalProps> = ({ show, onClose, data, propertyInfo, zaloTemplate }) => {
   const { addToast } = useUI();
   const [lang, setLang] = useState<'vi' | 'en'>('vi');
+  const [showFullQr, setShowFullQr] = useState(false);
+
+  const qrImageUrl = useMemo(() => {
+    if (!data) return undefined;
+
+    const generatedQr = buildVietQrImageUrl({
+      bankCode: propertyInfo.bankCode,
+      bankAccountNumber: propertyInfo.bankAccountNumber,
+      bankOwner: propertyInfo.bankOwner,
+      amount: data.balance > 0 ? data.balance : undefined,
+      addInfo: data.balance > 0 ? `Thanh toan ${data.guestName}` : undefined,
+    });
+
+    return generatedQr || propertyInfo.qrUrl;
+  }, [data, propertyInfo.bankCode, propertyInfo.bankAccountNumber, propertyInfo.bankOwner, propertyInfo.qrUrl]);
 
   if (!show || !data) return null;
 
@@ -278,7 +294,7 @@ ${propertyInfo.invoiceFooter || 'Cảm ơn và hẹn gặp lại!'}
             {/* Bank Info */}
             <div className="border border-gray-200 rounded-lg p-4 mb-6">
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-3">{t.bankInfo}</p>
-              <div className="flex justify-between items-start gap-3">
+              <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
                 <div>
                   <p className="text-[12px] text-gray-600 mb-0.5">{propertyInfo.bankName || 'Vietcombank'}</p>
                   <p className="text-xl font-black text-gray-900 tracking-widest leading-tight">
@@ -288,10 +304,17 @@ ${propertyInfo.invoiceFooter || 'Cảm ơn và hẹn gặp lại!'}
                     {t.accOwner}: <span className="font-bold text-gray-800 uppercase">{propertyInfo.bankOwner}</span>
                   </p>
                 </div>
-                {propertyInfo.qrUrl && (
-                  <div className="flex flex-col items-center flex-shrink-0">
-                    <img src={propertyInfo.qrUrl} alt="QR" className="w-20 h-20 object-contain" />
-                    <p className="text-[9px] text-gray-400 mt-1 text-center">{t.qrHint}</p>
+                {qrImageUrl && (
+                  <div className="flex flex-col items-center self-center sm:self-start flex-shrink-0 relative group">
+                    <img src={qrImageUrl} alt="QR" className="w-28 h-28 object-contain" />
+                    <button
+                      onClick={() => setShowFullQr(true)}
+                      className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg bg-black/40 sm:hidden"
+                      title="Xem QR lớn hơn"
+                    >
+                      <Maximize2 size={24} className="text-white" />
+                    </button>
+                    <p className="text-[9px] text-gray-400 mt-1 text-center max-w-24">{t.qrHint}</p>
                   </div>
                 )}
               </div>
@@ -310,6 +333,19 @@ ${propertyInfo.invoiceFooter || 'Cảm ơn và hẹn gặp lại!'}
           </div>
         </div>
       </div>
+      
+      {qrImageUrl && (
+        <FullScreenQrModal
+          show={showFullQr}
+          onClose={() => setShowFullQr(false)}
+          qrImageUrl={qrImageUrl}
+          bankName={propertyInfo.bankName || 'Vietcombank'}
+          bankAccountNumber={propertyInfo.bankAccountNumber}
+          bankOwner={propertyInfo.bankOwner}
+          amount={data.balance > 0 ? data.balance : undefined}
+          guestName={data.guestName}
+        />
+      )}
     </div>
   );
 };

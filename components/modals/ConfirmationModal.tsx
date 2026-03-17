@@ -1,9 +1,10 @@
 
-import React from 'react';
-import { Printer, X, Copy, MapPin, Phone } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Printer, X, Copy, MapPin, Phone, Maximize2 } from 'lucide-react';
 import { ConfirmationData, PropertyInfo } from '../../types/types';
-import { formatCurrency } from '../../utils/utils';
+import { buildVietQrImageUrl, formatCurrency } from '../../utils/utils';
 import { useUI } from '../../context/UIContext';
+import FullScreenQrModal from './FullScreenQrModal';
 
 interface ConfirmationModalProps {
   show: boolean;
@@ -15,6 +16,22 @@ interface ConfirmationModalProps {
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ show, onClose, data, propertyInfo, zaloTemplate }) => {
   const { addToast } = useUI();
+  const [showFullQr, setShowFullQr] = useState(false);
+
+  const qrImageUrl = useMemo(() => {
+    if (!data) return undefined;
+
+    const generatedQr = buildVietQrImageUrl({
+      bankCode: propertyInfo.bankCode,
+      bankAccountNumber: propertyInfo.bankAccountNumber,
+      bankOwner: propertyInfo.bankOwner,
+      amount: data.balance > 0 ? data.balance : undefined,
+      addInfo: data.balance > 0 ? `Dat coc ${data.guestName}` : undefined,
+    });
+
+    return generatedQr || propertyInfo.qrUrl;
+  }, [data, propertyInfo.bankCode, propertyInfo.bankAccountNumber, propertyInfo.bankOwner, propertyInfo.qrUrl]);
+
   if (!show || !data) return null;
 
   const handlePrint = () => window.print();
@@ -216,6 +233,35 @@ Cảm ơn bạn đã lựa chọn ${propertyInfo.name}! ❤️`;
               <span className="font-black text-xl text-red-600">{formatCurrency(data.balance)}</span>
             </div>
 
+            {/* Bank Info */}
+            <div className="border border-gray-200 rounded-lg p-4 mb-6">
+              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-3">THÔNG TIN CHUYỂN KHOẢN</p>
+              <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
+                <div>
+                  <p className="text-[12px] text-gray-600 mb-0.5">{propertyInfo.bankName || 'Vietcombank'}</p>
+                  <p className="text-xl font-black text-gray-900 tracking-widest leading-tight">
+                    {propertyInfo.bankAccountNumber}
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Chủ TK: <span className="font-bold text-gray-800 uppercase">{propertyInfo.bankOwner}</span>
+                  </p>
+                </div>
+                {qrImageUrl && (
+                  <div className="flex flex-col items-center self-center sm:self-start flex-shrink-0 relative group">
+                    <img src={qrImageUrl} alt="QR" className="w-28 h-28 object-contain" />
+                    <button
+                      onClick={() => setShowFullQr(true)}
+                      className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg bg-black/40 sm:hidden"
+                      title="Xem QR lớn hơn"
+                    >
+                      <Maximize2 size={24} className="text-white" />
+                    </button>
+                    <p className="text-[9px] text-gray-400 mt-1 text-center max-w-24">Quét để chuyển khoản / đặt cọc</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Directions Section */}
             <div className="border border-gray-200 rounded-lg p-4 mb-6">
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-3">HƯỚNG DẪN ĐẾN HOSTEL</p>
@@ -252,6 +298,19 @@ Cảm ơn bạn đã lựa chọn ${propertyInfo.name}! ❤️`;
           </div>
         </div>
       </div>
+      
+      {qrImageUrl && (
+        <FullScreenQrModal
+          show={showFullQr}
+          onClose={() => setShowFullQr(false)}
+          qrImageUrl={qrImageUrl}
+          bankName={propertyInfo.bankName || 'Vietcombank'}
+          bankAccountNumber={propertyInfo.bankAccountNumber}
+          bankOwner={propertyInfo.bankOwner}
+          amount={data.balance > 0 ? data.balance : undefined}
+          guestName={data.guestName}
+        />
+      )}
     </div>
   );
 };
