@@ -219,7 +219,7 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
             )}
 
              {/* PRIORITY 2: System Configuration (Collapsible) */}
-            <details className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden group">
+            <details className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden group" open>
                 <summary className="p-4 font-bold text-lg flex items-center gap-2 cursor-pointer list-none select-none hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <div className="bg-blue-100 dark:bg-blue-900/30 p-1.5 rounded-lg text-blue-600"><Settings size={20}/></div>
                     <span className="flex-1">Cấu hình Hệ thống</span>
