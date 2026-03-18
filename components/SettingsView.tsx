@@ -51,6 +51,7 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     const [newService, setNewService] = useState({ name: '', price: 0 });
     const [newDiscount, setNewDiscount] = useState({ description: '', amount: 0 });
     const [newRoom, setNewRoom] = useState<Partial<RoomDefinition>>({ id: '', name: '', price: 0 });
+    const [isSyncingSheets, setIsSyncingSheets] = useState(false);
     const resolvedBank = findVietQrBank(propertyInfo.bankCode, propertyInfo.bankName);
     const [bankForm, setBankForm] = useState({
         bankCode: resolvedBank?.code || propertyInfo.bankCode || '',
@@ -101,6 +102,18 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
             bankCode,
             bankName: selectedBank?.label || prev.bankName,
         }));
+    };
+
+    const handleSyncSheets = async () => {
+        setIsSyncingSheets(true);
+        try {
+            await actions.syncAll();
+            addToast('Đã sync Google Sheets thành công', 'success');
+        } catch (error) {
+            addToast(`Sync thất bại: ${String(error)}`, 'error');
+        } finally {
+            setIsSyncingSheets(false);
+        }
     };
 
     return (
@@ -326,6 +339,25 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                     Lưu thông tin ngân hàng
                                 </button>
                             </div>
+                        </div>
+                    )}
+
+                    {userRole === 'owner' && (
+                        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center gap-3">
+                                <Clock size={20} className="text-green-600" />
+                                <div>
+                                    <p className="font-bold text-gray-900 dark:text-white">Đồng bộ Google Sheets</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">Đồng bộ thủ công bookings và expenses</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleSyncSheets}
+                                disabled={isSyncingSheets}
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                {isSyncingSheets ? 'Đang sync...' : 'Sync ngay'}
+                            </button>
                         </div>
                     )}
                     

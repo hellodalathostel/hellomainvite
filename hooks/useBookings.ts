@@ -5,6 +5,7 @@ import { db } from '../config/database';
 import type { Booking, BookingEntity, GroupEntity, Service, Discount } from '../types/types';
 import { getDaysDiff, addDays, formatCurrency, isOverlap, now } from '../utils/utils';
 import { mergeBookingData } from '../utils/dataConverters';
+import { syncBookingsToSheets, syncExpensesToSheets } from '../utils/sheetsSync';
 import { useAudit } from './useAudit';
 import type { SuggestedGuest, SaveBookingPayload } from '../types/bookingForm';
 
@@ -238,6 +239,13 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
     updates[`/groups/${groupId}/updatedAt`] = now();
 
     await update(ref(db), updates);
+
+    // Sync lên Google Sheets (chạy ngầm, không block UI)
+    get(ref(db, 'bookings')).then(snap => {
+      if (snap.exists()) {
+        syncBookingsToSheets(snap.val()).catch(console.error);
+      }
+    });
   };
 
   // 1. Fetch Logic: Load both Bookings and Groups
@@ -738,6 +746,17 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
       logAction('repair_group', `Sửa lỗi group ${groupId}`);
   };
 
+  const syncAll = async () => {
+    const [bookingsSnap, expensesSnap] = await Promise.all([
+      get(ref(db, 'bookings')),
+      get(ref(db, 'expenses')),
+    ]);
+    await Promise.all([
+      syncBookingsToSheets(bookingsSnap.val() || {}),
+      syncExpensesToSheets(expensesSnap.val() || {}),
+    ]);
+  };
+
   return {
     bookings,
     loading,
@@ -753,6 +772,7 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
     convertSingleToGroup,
     removeRoomFromGroup,
     repairGroup,
-    extendBooking
+    extendBooking,
+    syncAll,
   };
 };

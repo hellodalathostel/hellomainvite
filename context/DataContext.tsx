@@ -21,6 +21,7 @@ interface DataContextType {
     
     actions: {
         saveBooking: (data: SaveBookingPayload) => Promise<void>;
+        syncAll: () => Promise<void>;
         cancelBooking: (id: string, isGroup: boolean, groupId?: string) => Promise<void>;
         extendBooking: (booking: Booking) => Promise<void>;
         splitBooking: (original: Booking, newRoomId: string) => Promise<string>;
@@ -101,6 +102,7 @@ export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | 
         suggestedGuest,
         setSuggestedGuest,
         saveBooking,
+        syncAll,
         cancelBooking,
         extendBooking,
         splitBooking,
@@ -141,6 +143,7 @@ export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | 
 
     const bookingActions = useMemo(() => ({
         saveBooking,
+        syncAll,
         cancelBooking,
         extendBooking,
         splitBooking,
@@ -153,6 +156,7 @@ export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | 
         findGuestByName,
     }), [
         saveBooking,
+        syncAll,
         cancelBooking,
         extendBooking,
         splitBooking,
