@@ -294,8 +294,8 @@ ${propertyInfo.invoiceFooter || 'Cảm ơn và hẹn gặp lại!'}
             {/* Bank Info */}
             <div className="border border-gray-200 rounded-lg p-4 mb-6">
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-3">{t.bankInfo}</p>
-              <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
-                <div>
+              <div className="flex flex-col items-center gap-4">
+                <div className="text-center">
                   <p className="text-[12px] text-gray-600 mb-0.5">{propertyInfo.bankName || 'Vietcombank'}</p>
                   <p className="text-xl font-black text-gray-900 tracking-widest leading-tight">
                     {propertyInfo.bankAccountNumber}
@@ -305,16 +305,16 @@ ${propertyInfo.invoiceFooter || 'Cảm ơn và hẹn gặp lại!'}
                   </p>
                 </div>
                 {qrImageUrl && (
-                  <div className="flex flex-col items-center self-center sm:self-start flex-shrink-0 relative group">
-                    <img src={qrImageUrl} alt="QR" className="w-28 h-28 object-contain" />
+                  <div className="flex flex-col items-center flex-shrink-0 relative group">
+                    <img src={qrImageUrl} alt="QR" className="w-24 h-24 object-contain" />
                     <button
                       onClick={() => setShowFullQr(true)}
                       className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg bg-black/40 sm:hidden"
                       title="Xem QR lớn hơn"
                     >
-                      <Maximize2 size={24} className="text-white" />
+                      <Maximize2 size={20} className="text-white" />
                     </button>
-                    <p className="text-[9px] text-gray-400 mt-1 text-center max-w-24">{t.qrHint}</p>
+                    <p className="text-[9px] text-gray-400 mt-1 text-center max-w-20">{t.qrHint}</p>
                   </div>
                 )}
               </div>

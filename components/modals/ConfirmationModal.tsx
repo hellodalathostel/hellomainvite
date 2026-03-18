@@ -233,50 +233,19 @@ Cảm ơn bạn đã lựa chọn ${propertyInfo.name}! ❤️`;
               <span className="font-black text-xl text-red-600">{formatCurrency(data.balance)}</span>
             </div>
 
-            {/* Bank Info */}
-            <div className="border border-gray-200 rounded-lg p-4 mb-6">
-              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-3">THÔNG TIN CHUYỂN KHOẢN</p>
-              <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
-                <div>
-                  <p className="text-[12px] text-gray-600 mb-0.5">{propertyInfo.bankName || 'Vietcombank'}</p>
-                  <p className="text-xl font-black text-gray-900 tracking-widest leading-tight">
-                    {propertyInfo.bankAccountNumber}
-                  </p>
-                  <p className="text-[11px] text-gray-500 mt-1">
-                    Chủ TK: <span className="font-bold text-gray-800 uppercase">{propertyInfo.bankOwner}</span>
-                  </p>
-                </div>
-                {qrImageUrl && (
-                  <div className="flex flex-col items-center self-center sm:self-start flex-shrink-0 relative group">
-                    <img src={qrImageUrl} alt="QR" className="w-28 h-28 object-contain" />
-                    <button
-                      onClick={() => setShowFullQr(true)}
-                      className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg bg-black/40 sm:hidden"
-                      title="Xem QR lớn hơn"
-                    >
-                      <Maximize2 size={24} className="text-white" />
-                    </button>
-                    <p className="text-[9px] text-gray-400 mt-1 text-center max-w-24">Quét để chuyển khoản / đặt cọc</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Directions Section */}
             <div className="border border-gray-200 rounded-lg p-4 mb-6">
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-3">HƯỚNG DẪN ĐẾN HOSTEL</p>
               {propertyInfo.invoiceHeader && (
                 <p className="text-[12px] text-gray-700 leading-relaxed mb-3">{propertyInfo.invoiceHeader}</p>
               )}
-              {mapLink && (
-                <div className="flex items-start gap-2 mb-2">
-                  <MapPin size={13} className="text-gray-500 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <span className="text-[11px] font-bold text-gray-700">Google Maps: </span>
-                    <a href={mapLink} className="text-[11px] text-blue-600 underline break-all">{mapLink}</a>
-                  </div>
+              <div className="flex items-start gap-2 mb-2">
+                <MapPin size={13} className="text-gray-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <span className="text-[11px] font-bold text-gray-700">Google Maps: </span>
+                  <a href="https://maps.app.goo.gl/y6efdw6hrR5tN94x7?g_st=ac" className="text-[11px] text-blue-600 underline break-all">Xem đường dẫn</a>
                 </div>
-              )}
+              </div>
               <div className="flex items-center gap-2">
                 <Phone size={13} className="text-gray-500 flex-shrink-0" />
                 <span className="text-[11px] text-gray-700">
@@ -299,18 +268,6 @@ Cảm ơn bạn đã lựa chọn ${propertyInfo.name}! ❤️`;
         </div>
       </div>
       
-      {qrImageUrl && (
-        <FullScreenQrModal
-          show={showFullQr}
-          onClose={() => setShowFullQr(false)}
-          qrImageUrl={qrImageUrl}
-          bankName={propertyInfo.bankName || 'Vietcombank'}
-          bankAccountNumber={propertyInfo.bankAccountNumber}
-          bankOwner={propertyInfo.bankOwner}
-          amount={data.balance > 0 ? data.balance : undefined}
-          guestName={data.guestName}
-        />
-      )}
     </div>
   );
 };

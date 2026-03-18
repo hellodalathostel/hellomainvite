@@ -44,7 +44,7 @@ const FullScreenQrModal: React.FC<FullScreenQrModalProps> = ({
         <img
           src={qrImageUrl}
           alt="Payment QR Code"
-          className="w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 object-contain mb-8 rounded-2xl bg-white/5 p-4"
+          className="w-80 h-80 sm:w-96 sm:h-96 md:w-[28rem] md:h-[28rem] object-contain mb-8 rounded-2xl bg-white/5 p-4"
         />
         <p className="text-white text-lg font-bold text-center mt-4">
           Quét mã QR để chuyển khoản
