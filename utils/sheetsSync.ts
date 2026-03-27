@@ -1,5 +1,7 @@
 // utils/sheetsSync.ts
 
+import { getDaysDiff } from './utils';
+
 export interface BookingForSheet {
   id: string;
   checkIn: string;
@@ -34,21 +36,11 @@ export interface ExpenseForSheet {
 // Thay bằng URL sau khi deploy Apps Script
 const APPS_SCRIPT_URL = import.meta.env.VITE_SHEETS_WEBHOOK_URL || "";
 
-function calcNights(checkIn: string, checkOut: string): number {
-  try {
-    const d1 = new Date(checkIn);
-    const d2 = new Date(checkOut);
-    return Math.max(1, Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
-  } catch {
-    return 1;
-  }
-}
-
 function normalizeBooking(raw: Record<string, any>): BookingForSheet {
   const services = Array.isArray(raw.services) ? raw.services : [];
   const serviceTotal = services.reduce((sum: number, s: any) => sum + (s.price * s.qty), 0);
   const servicesText = services.map((s: any) => `${s.name} x${s.qty}`).join(", ");
-  const nights = raw.nights || calcNights(raw.checkIn, raw.checkOut);
+  const nights = raw.nights || getDaysDiff(raw.checkIn, raw.checkOut);
 
   return {
     id: raw.id || "",

@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Download, Copy, TrendingUp, Wallet, PieChart, ChevronDown, ChevronUp, CreditCard, Layers, BedDouble, ArrowDownCircle } from 'lucide-react';
 import { addDays, formatCompactCurrency, formatCurrency, getDaysDiff } from '../utils/utils';
-import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from '../utils/calculations';
+import { getBookingGrandTotal, normalizeMoneyAmount } from '../utils/calculations';
 import { useData } from '../context/DataContext';
 import { useUI } from '../context/UIContext';
 import { buildDailyAccountingExportRows, useReportAnalytics } from '../hooks/useReportAnalytics';
@@ -66,23 +66,22 @@ const ReportView = () => {
         netProfit: 0, grossProfit: 0,
         occupancyRate: 0, totalNightsSold: 0, totalAvailableNights: 0
     };
-    
-    let roomRevenue = 0;
-    let serviceRevenue = 0;
-    let surchargeRevenue = 0;
-    let discountRevenue = 0;
 
-    const relevantBookings = reportBookings;
-
-    relevantBookings.forEach(b => {
-        const nights = getDaysDiff(b.checkIn, b.checkOut);
-      roomRevenue += (normalizeMoneyAmount(b.price) * nights);
-        
-      serviceRevenue += getBookingServiceTotal(b);
-        
-      surchargeRevenue += getEffectiveBookingSurcharge(b);
-
-      discountRevenue += getBookingDiscountTotal(b);
+    const bookingRevenueTotals = dailyRevenue.reduce((acc, day) => {
+      acc.roomRevenue += day.roomRevenue;
+      acc.serviceRevenue += day.serviceRevenue;
+      acc.surchargeRevenue += day.surchargeRevenue;
+      acc.discountRevenue += day.discountTotal;
+      acc.netRevenue += day.revenue;
+      acc.grossRevenue += day.grossRevenue;
+      return acc;
+    }, {
+      roomRevenue: 0,
+      serviceRevenue: 0,
+      surchargeRevenue: 0,
+      discountRevenue: 0,
+      netRevenue: 0,
+      grossRevenue: 0,
     });
 
     let bankFee = 0;
@@ -103,8 +102,8 @@ const ReportView = () => {
         }
     });
 
-    const totalRevenueGross = roomRevenue + serviceRevenue + surchargeRevenue + otherIncome;
-    const totalRevenueNet = Math.max(0, totalRevenueGross - discountRevenue);
+    const totalRevenueGross = bookingRevenueTotals.grossRevenue + otherIncome;
+    const totalRevenueNet = bookingRevenueTotals.netRevenue + otherIncome;
     const totalExpense = bankFee + operatingExpense;
 
     const rangeStart = dateRange.start;
@@ -136,10 +135,10 @@ const ReportView = () => {
     return {
       netRevenue: totalRevenueNet,
       grossRevenue: totalRevenueGross,
-      roomRevenue,
-      serviceRevenue,
-      surchargeRevenue,
-      discountRevenue,
+      roomRevenue: bookingRevenueTotals.roomRevenue,
+      serviceRevenue: bookingRevenueTotals.serviceRevenue,
+      surchargeRevenue: bookingRevenueTotals.surchargeRevenue,
+      discountRevenue: bookingRevenueTotals.discountRevenue,
       otherIncome,
       expense: totalExpense,
       bankFee,
@@ -150,7 +149,7 @@ const ReportView = () => {
       totalNightsSold,
       totalAvailableNights
     };
-  }, [bookings, expenses, rooms, reportBookings, dateRange]);
+  }, [bookings, expenses, rooms, dateRange, dailyRevenue]);
 
   const dailyOps = useMemo(() => {
     const todaysCheckIn = bookings.filter(b => b.status !== 'cancelled' && inRange(b.checkIn)).length;
@@ -168,10 +167,7 @@ const ReportView = () => {
     const dueCollection = bookings
       .filter(b => b.status !== 'cancelled' && inRange(b.checkOut))
       .reduce((sum, b) => {
-        const roomTotal = normalizeMoneyAmount(b.price) * getDaysDiff(b.checkIn, b.checkOut);
-        const serviceTotal = getBookingServiceTotal(b);
-        const discountTotal = getBookingDiscountTotal(b);
-        const grandTotal = roomTotal + serviceTotal + getEffectiveBookingSurcharge(b) - discountTotal;
+        const grandTotal = getBookingGrandTotal(b);
         const debt = Math.max(0, grandTotal - normalizeMoneyAmount(b.paid));
         return sum + debt;
       }, 0);

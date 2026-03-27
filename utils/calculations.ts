@@ -1,11 +1,13 @@
 
 import type { Booking, RoomDefinition, InvoiceItem } from '../types/types';
-import { getDaysDiff, formatDate, formatCurrency } from './utils';
+import { getDaysDiff, formatDate, formatCurrency } from './utils.ts';
 
 export const CARD_FEE_RATE = 0.04;
 export const CARD_FEE_SERVICE_NAME = 'Phí quẹt thẻ (4%)';
 
 type BookingFinancialInput = Pick<Booking, 'services' | 'discounts' | 'surcharge' | 'paymentMethod'>;
+
+type BookingGrandTotalInput = Pick<Booking, 'checkIn' | 'checkOut' | 'price' | 'services' | 'discounts' | 'surcharge' | 'totalAmount'>;
 
 type BookingTotalInput = {
   id?: string;
@@ -46,6 +48,18 @@ export const hasCardFeeService = (booking: Pick<Booking, 'services'> | BookingFi
 
 export const getEffectiveBookingSurcharge = (booking: Pick<Booking, 'services' | 'surcharge'> | BookingFinancialInput | BookingTotalInput) =>
   hasCardFeeService(booking) ? 0 : Math.round(normalizeMoneyAmount(booking.surcharge));
+
+export const getBookingGrandTotal = (booking: BookingGrandTotalInput) => {
+  if (typeof booking.totalAmount === 'number' && booking.totalAmount > 0) {
+    return booking.totalAmount;
+  }
+
+  const nights = getDaysDiff(booking.checkIn, booking.checkOut);
+  const roomTotal = normalizeMoneyAmount(booking.price) * nights;
+  const serviceTotal = getBookingServiceTotal(booking);
+  const discountTotal = getBookingDiscountTotal(booking);
+  return roomTotal + serviceTotal + getEffectiveBookingSurcharge(booking) - discountTotal;
+};
 
 interface CalculationResult {
   roomTotal: number;

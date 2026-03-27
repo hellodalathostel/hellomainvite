@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { formatCurrency } from '../../utils/utils';
 
 interface FullScreenQrModalProps {
   show: boolean;
@@ -23,9 +24,6 @@ const FullScreenQrModal: React.FC<FullScreenQrModalProps> = ({
   guestName,
 }) => {
   if (!show) return null;
-
-  const formatCurrency = (num: number) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
 
   return (
     <div className="fixed inset-0 bg-black z-[90] flex flex-col items-center justify-center">

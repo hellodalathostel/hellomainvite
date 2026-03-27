@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { Booking } from '../types/types';
-import { getDaysDiff } from '../utils/utils';
-import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from '../utils/calculations';
+import { addDays, getDaysDiff } from '../utils/utils.ts';
+import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from '../utils/calculations.ts';
 
 export interface DailyRevenueData {
   date: string;
@@ -298,9 +298,17 @@ export const buildReportAnalytics = (bookings: Booking[], startDate?: string, en
     }))
     .sort((a, b) => b.revenue - a.revenue);
 
+  const daysInRange = startDate && endDate ? getDaysDiff(startDate, addDays(endDate, 1)) : 0;
+  const roomRevenue = Object.values(roomRevenueMap)
+    .map(item => ({
+      ...item,
+      occupancyRate: daysInRange > 0 ? (item.nights / daysInRange) * 100 : 0,
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
+
   return {
     dailyRevenue: Object.values(dailyRevenueMap).sort((a, b) => a.date.localeCompare(b.date)),
-    roomRevenue: Object.values(roomRevenueMap).sort((a, b) => b.revenue - a.revenue),
+    roomRevenue,
     sourceRevenue,
     customerRevenue: Object.values(customerRevenueMap).sort((a, b) => b.revenue - a.revenue),
     monthlyRevenue: Object.values(monthlyRevenueMap).sort((a, b) => a.month.localeCompare(b.month)),

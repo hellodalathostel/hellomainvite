@@ -1,22 +1,11 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Search, X, Users, StickyNote, Brush, LogIn, LogOut as LogoutIcon, ChevronRight } from 'lucide-react';
 import { Booking, RoomDefinition } from '../types/types';
-import { formatCurrency, formatCompactCurrency, formatDate, getDaysDiff } from '../utils/utils';
+import { formatCurrency, formatCompactCurrency, formatDate } from '../utils/utils';
 import { useData } from '../context/DataContext';
 import { useUI } from '../context/UIContext';
-import { getBookingDiscountTotal, getBookingServiceTotal, getEffectiveBookingSurcharge, normalizeMoneyAmount } from '../utils/calculations';
-
-function getBookingTotal(booking: Booking) {
-  if (typeof booking.totalAmount === 'number' && booking.totalAmount > 0) {
-    return booking.totalAmount;
-  }
-  const nights = getDaysDiff(booking.checkIn, booking.checkOut);
-  const roomTotal = normalizeMoneyAmount(booking.price) * nights;
-  const serviceTotal = getBookingServiceTotal(booking);
-  const discountTotal = getBookingDiscountTotal(booking);
-  return roomTotal + serviceTotal + getEffectiveBookingSurcharge(booking) - discountTotal;
-}
+import { getBookingGrandTotal } from '../utils/calculations';
 
 type RoomQuickFilter = 'all' | 'checkin' | 'checkout' | 'dirty' | 'debt';
 
@@ -192,16 +181,10 @@ const DashboardView = () => {
     bookings.forEach(booking => {
       if (booking.status === 'checked-in') {
         map[booking.roomId] = { status: 'checked-in', data: booking };
+        return;
       }
-    });
 
-    bookings.forEach(booking => {
-      if (
-        booking.status === 'booked' &&
-        booking.checkIn <= today &&
-        booking.checkOut > today &&
-        map[booking.roomId]?.status !== 'checked-in'
-      ) {
+      if (booking.status === 'booked' && booking.checkIn <= today && booking.checkOut > today && map[booking.roomId]?.status !== 'checked-in') {
         map[booking.roomId] = { status: 'booked', data: booking };
       }
     });
@@ -215,14 +198,34 @@ const DashboardView = () => {
     return bookings.filter(b => b.status === 'checked-in').sort((a, b) => new Date(a.checkOut).getTime() - new Date(b.checkOut).getTime());
   }, [bookings]);
 
+  const roomIdsWithCheckIn = useMemo(() => {
+    const ids = new Set<string>();
+    bookings.forEach(b => {
+      if (b.status !== 'cancelled' && b.checkIn === selectedDate) {
+        ids.add(b.roomId);
+      }
+    });
+    return ids;
+  }, [bookings, selectedDate]);
+
+  const roomIdsWithCheckOut = useMemo(() => {
+    const ids = new Set<string>();
+    bookings.forEach(b => {
+      if (b.status !== 'cancelled' && b.checkOut === selectedDate) {
+        ids.add(b.roomId);
+      }
+    });
+    return ids;
+  }, [bookings, selectedDate]);
+
   const roomQuickFilterCounts = useMemo(() => {
-    const checkin = bookings.filter(b => b.status !== 'cancelled' && b.checkIn === selectedDate).length;
-    const checkout = bookings.filter(b => b.status !== 'cancelled' && b.checkOut === selectedDate).length;
+    const checkin = roomIdsWithCheckIn.size;
+    const checkout = roomIdsWithCheckOut.size;
     const dirty = sortedRooms.filter(r => roomStates[r.id] === 'dirty').length;
     const debt = sortedRooms.filter(r => {
       const roomData = roomStatusMap[r.id]?.data;
       if (!roomData || roomStatusMap[r.id]?.status === 'empty' || roomStatusMap[r.id]?.status === 'dirty') return false;
-      return getBookingTotal(roomData) > (roomData.paid || 0);
+      return getBookingGrandTotal(roomData) > (roomData.paid || 0);
     }).length;
 
     return {
@@ -232,7 +235,7 @@ const DashboardView = () => {
       dirty,
       debt,
     };
-  }, [bookings, selectedDate, sortedRooms, roomStates, roomStatusMap]);
+  }, [roomIdsWithCheckIn, roomIdsWithCheckOut, sortedRooms, roomStates, roomStatusMap]);
 
   const visibleRooms = useMemo(() => {
     if (roomQuickFilter === 'all') return sortedRooms;
@@ -245,21 +248,21 @@ const DashboardView = () => {
       }
 
       if (roomQuickFilter === 'checkin') {
-        return bookings.some(b => b.roomId === room.id && b.status !== 'cancelled' && b.checkIn === selectedDate);
+        return roomIdsWithCheckIn.has(room.id);
       }
 
       if (roomQuickFilter === 'checkout') {
-        return bookings.some(b => b.roomId === room.id && b.status !== 'cancelled' && b.checkOut === selectedDate);
+        return roomIdsWithCheckOut.has(room.id);
       }
 
       if (roomQuickFilter === 'debt') {
         if (!roomData || roomStatusMap[room.id]?.status === 'empty' || roomStatusMap[room.id]?.status === 'dirty') return false;
-        return getBookingTotal(roomData) > (roomData.paid || 0);
+        return getBookingGrandTotal(roomData) > (roomData.paid || 0);
       }
 
       return true;
     });
-  }, [roomQuickFilter, sortedRooms, roomStatusMap, roomStates, bookings, selectedDate]);
+  }, [roomQuickFilter, sortedRooms, roomStatusMap, roomStates, roomIdsWithCheckIn, roomIdsWithCheckOut]);
 
   const notesWithBookings = useMemo(() => {
     return bookings
@@ -267,10 +270,10 @@ const DashboardView = () => {
       .sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
   }, [bookings, today]);
 
-  const handleCleanRoom = async (id: string) => {
+  const handleCleanRoom = useCallback(async (id: string) => {
       await actions.cleanRoom(id);
       addToast(`Đã dọn phòng ${id}`, 'info');
-  }
+  }, [actions, addToast]);
 
   return (
     <div className="p-4 pb-24 lg:p-6 lg:pb-6 animate-fade-in space-y-6 h-full">
@@ -373,7 +376,7 @@ const DashboardView = () => {
                 </div>
                 <div className="text-right">
                     <span className="text-xs text-gray-600 dark:text-gray-400 block font-medium">{formatDate(b.checkIn)} - {formatDate(b.checkOut)}</span>
-                    <span className="text-sm font-black text-blue-700 dark:text-blue-400">{formatCurrency(getBookingTotal(b))}</span>
+                    <span className="text-sm font-black text-blue-700 dark:text-blue-400">{formatCurrency(getBookingGrandTotal(b))}</span>
                 </div>
                 </div>
             ))}

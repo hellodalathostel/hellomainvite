@@ -141,7 +141,7 @@ export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | 
 
     const loading = bookingsLoading || expensesLoading;
 
-    const bookingActions = useMemo(() => ({
+    const actions = useMemo(() => ({
         saveBooking,
         syncAll,
         cancelBooking,
@@ -154,27 +154,8 @@ export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | 
         checkRoomCollision,
         findGuestByPhone,
         findGuestByName,
-    }), [
-        saveBooking,
-        syncAll,
-        cancelBooking,
-        extendBooking,
-        splitBooking,
-        addRoomToGroup,
-        convertSingleToGroup,
-        removeRoomFromGroup,
-        repairGroup,
-        checkRoomCollision,
-        findGuestByPhone,
-        findGuestByName,
-    ]);
-
-    const expenseActions = useMemo(() => ({
         saveExpense,
         deleteExpense,
-    }), [saveExpense, deleteExpense]);
-
-    const masterActions = useMemo(() => ({
         cleanRoom,
         addService,
         removeService,
@@ -184,6 +165,20 @@ export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | 
         deleteRoom,
         updateProperty,
     }), [
+        saveBooking,
+        syncAll,
+        cancelBooking,
+        extendBooking,
+        splitBooking,
+        addRoomToGroup,
+        convertSingleToGroup,
+        removeRoomFromGroup,
+        repairGroup,
+        checkRoomCollision,
+        findGuestByPhone,
+        findGuestByName,
+        saveExpense,
+        deleteExpense,
         cleanRoom,
         addService,
         removeService,
@@ -193,12 +188,6 @@ export const DataProvider: React.FC<{ children: ReactNode; user: FirebaseUser | 
         deleteRoom,
         updateProperty,
     ]);
-
-    const actions = useMemo(() => ({
-        ...bookingActions,
-        ...expenseActions,
-        ...masterActions,
-    }), [bookingActions, expenseActions, masterActions]);
 
     // OPTIMIZED: Memoize context value to prevent unnecessary re-renders in child components
     // This is especially important since DataContext is used by many components

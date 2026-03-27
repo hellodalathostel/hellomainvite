@@ -92,3 +92,107 @@ test('daily accounting export rows have expected columns and values', () => {
   assert.equal(row.grossRevenue, 235000);
   assert.equal(row.revenue, 225000);
 });
+
+test('returns empty analytics for empty bookings', () => {
+  const analytics = buildReportAnalytics([]);
+
+  assert.equal(analytics.dailyRevenue.length, 0);
+  assert.equal(analytics.roomRevenue.length, 0);
+  assert.equal(analytics.sourceRevenue.length, 0);
+  assert.equal(analytics.customerRevenue.length, 0);
+  assert.equal(analytics.monthlyRevenue.length, 0);
+  assert.equal(analytics.roomRevenueByMonth.length, 0);
+  assert.equal(analytics.roomRevenueByQuarter.length, 0);
+  assert.equal(analytics.roomRevenueByYear.length, 0);
+});
+
+test('aggregates room revenue by quarter and year correctly', () => {
+  const bookings: Booking[] = [
+    makeBooking({
+      id: 'b-q1',
+      checkIn: '2026-01-01',
+      checkOut: '2026-01-03',
+      price: 100000,
+    }),
+    makeBooking({
+      id: 'b-q2',
+      checkIn: '2026-04-10',
+      checkOut: '2026-04-12',
+      price: 200000,
+    }),
+  ];
+
+  const analytics = buildReportAnalytics(bookings);
+  const q1 = analytics.roomRevenueByQuarter.find(item => item.period === '2026-Q1');
+  const q2 = analytics.roomRevenueByQuarter.find(item => item.period === '2026-Q2');
+  const y2026 = analytics.roomRevenueByYear.find(item => item.period === '2026');
+
+  assert.ok(q1);
+  assert.ok(q2);
+  assert.ok(y2026);
+
+  // Q1: 2 nights * 100000
+  assert.equal(q1?.roomRevenue, 200000);
+  // Q2: 2 nights * 200000
+  assert.equal(q2?.roomRevenue, 400000);
+  // Year total
+  assert.equal(y2026?.roomRevenue, 600000);
+  assert.equal(y2026?.bookingCount, 2);
+});
+
+test('filters bookings by checkout date range inclusively', () => {
+  const bookings: Booking[] = [
+    makeBooking({ id: 'b-before', checkOut: '2026-02-28' }),
+    makeBooking({ id: 'b-start', checkOut: '2026-03-01' }),
+    makeBooking({ id: 'b-mid', checkOut: '2026-03-05' }),
+    makeBooking({ id: 'b-end', checkOut: '2026-03-07' }),
+    makeBooking({ id: 'b-after', checkOut: '2026-03-08' }),
+  ];
+
+  const analytics = buildReportAnalytics(bookings, '2026-03-01', '2026-03-07');
+  const ids = analytics.dailyRevenue.flatMap(day => day.bookingCount);
+
+  // start/end boundaries are inclusive for checkout date filter
+  assert.equal(analytics.dailyRevenue.length, 3);
+  assert.equal(ids.reduce((sum, count) => sum + count, 0), 3);
+});
+
+test('room occupancy rate is computed from nights over selected range', () => {
+  const bookings: Booking[] = [
+    makeBooking({
+      id: 'b-occ',
+      roomId: '101',
+      checkIn: '2026-03-01',
+      checkOut: '2026-03-03',
+      price: 100000,
+    }),
+  ];
+
+  // Range has 7 days; booking has 2 nights => 28.57%
+  const analytics = buildReportAnalytics(bookings, '2026-03-01', '2026-03-07');
+  assert.equal(analytics.roomRevenue.length, 1);
+  assert.equal(Number(analytics.roomRevenue[0].occupancyRate.toFixed(2)), 28.57);
+});
+
+test('card fee service edge keeps surcharge deduped with mixed services', () => {
+  const bookings: Booking[] = [
+    makeBooking({
+      id: 'b-card-mixed',
+      services: [
+        { name: CARD_FEE_SERVICE_NAME, price: 10000, qty: 1 },
+        { name: 'Laundry', price: 15000, qty: 2 },
+      ],
+      surcharge: 15000,
+      discounts: [{ description: 'Promo', amount: 5000 }],
+    }),
+  ];
+
+  const analytics = buildReportAnalytics(bookings);
+  const daily = analytics.dailyRevenue[0];
+
+  // room = 200000, services = 40000, surcharge deduped to 0, discount = 5000
+  assert.equal(daily.serviceRevenue, 40000);
+  assert.equal(daily.surchargeRevenue, 0);
+  assert.equal(daily.grossRevenue, 240000);
+  assert.equal(daily.revenue, 235000);
+});

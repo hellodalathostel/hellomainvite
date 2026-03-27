@@ -1,11 +1,33 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { Booking, RoomDefinition } from '../types/types';
 import { getDaysDiff, formatDate, addDays } from '../utils/utils';
 import { getLunarDate } from '../utils/lunar';
 import { useData } from '../context/DataContext';
 import { useUI } from '../context/UIContext';
+
+const areRoomBookingsEqual = (prev: Booking[], next: Booking[]) => {
+  if (prev.length !== next.length) return false;
+
+  for (let i = 0; i < prev.length; i++) {
+    const a = prev[i];
+    const b = next[i];
+    if (
+      a.id !== b.id ||
+      a.status !== b.status ||
+      a.roomId !== b.roomId ||
+      a.checkIn !== b.checkIn ||
+      a.checkOut !== b.checkOut ||
+      a.hasEarlyCheckIn !== b.hasEarlyCheckIn ||
+      a.hasLateCheckOut !== b.hasLateCheckOut
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+};
 
 // Keep CalendarRow as is or exported to separate file, for brevity assuming it's inside
 const CalendarRow = React.memo(({ 
@@ -113,8 +135,7 @@ const CalendarRow = React.memo(({
 }, (prev, next) => {
     if (prev.room.id !== next.room.id) return false;
     if (prev.daysInMonth[0].getTime() !== next.daysInMonth[0].getTime()) return false;
-    if (prev.bookingsForRoom.length !== next.bookingsForRoom.length) return false;
-    return prev.bookingsForRoom === next.bookingsForRoom; 
+  return areRoomBookingsEqual(prev.bookingsForRoom, next.bookingsForRoom);
 });
 
 
@@ -123,12 +144,12 @@ const CalendarView = () => {
   const { openBookingModal } = useUI();
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   
-  const getLocalDateStr = (d: Date) => {
+  const getLocalDateStr = useCallback((d: Date) => {
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
-  };
+  }, []);
 
   const monthStr = useMemo(() => {
     const y = viewDate.getFullYear();
@@ -136,14 +157,14 @@ const CalendarView = () => {
     return `${y}-${m.toString().padStart(2, '0')}`;
   }, [viewDate]);
 
-  const getWeekStart = (date: Date) => {
+  const getWeekStart = useCallback((date: Date) => {
     const result = new Date(date);
     const day = result.getDay();
     const diff = day === 0 ? -6 : 1 - day; // Monday as first day
     result.setDate(result.getDate() + diff);
     result.setHours(0, 0, 0, 0);
     return result;
-  };
+  }, []);
 
   const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if(e.target.value) {
@@ -190,7 +211,7 @@ const CalendarView = () => {
     return `${formatDate(getLocalDateStr(start))} - ${formatDate(getLocalDateStr(end))}`;
   }, [viewMode, daysInView]);
 
-  const shiftPeriod = (delta: number) => {
+  const shiftPeriod = useCallback((delta: number) => {
     const newDate = new Date(viewDate);
     if (viewMode === 'month') {
       newDate.setMonth(newDate.getMonth() + delta, 1);
@@ -198,26 +219,26 @@ const CalendarView = () => {
       newDate.setDate(newDate.getDate() + (delta * 7));
     }
     setViewDate(newDate);
-  };
+  }, [setViewDate, viewDate, viewMode]);
 
-  const isToday = (date: Date) => {
+  const isToday = useCallback((date: Date) => {
     const today = new Date();
     return date.getDate() === today.getDate() &&
            date.getMonth() === today.getMonth() &&
            date.getFullYear() === today.getFullYear();
-  };
+  }, []);
 
-  const getEffectiveBookingSpan = (booking: Booking, startDateStr: string) => {
+  const getEffectiveBookingSpan = useCallback((booking: Booking, startDateStr: string) => {
       let effectiveEnd = booking.hasLateCheckOut ? addDays(booking.checkOut, 1) : booking.checkOut;
       if (effectiveEnd > viewEndExclusiveStr) effectiveEnd = viewEndExclusiveStr;
       return getDaysDiff(startDateStr, effectiveEnd);
-  };
+  }, [viewEndExclusiveStr]);
 
-  const isDateInEffectiveRange = (booking: Booking, dateStr: string) => {
+  const isDateInEffectiveRange = useCallback((booking: Booking, dateStr: string) => {
       const start = booking.hasEarlyCheckIn ? addDays(booking.checkIn, -1) : booking.checkIn;
       const end = booking.hasLateCheckOut ? addDays(booking.checkOut, 1) : booking.checkOut;
       return dateStr >= start && dateStr < end;
-  };
+  }, []);
 
   const bookingsByRoom = useMemo(() => {
       const map: Record<string, Booking[]> = {};
