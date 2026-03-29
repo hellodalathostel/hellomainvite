@@ -17,6 +17,7 @@ const areRoomBookingsEqual = (prev: Booking[], next: Booking[]) => {
       a.id !== b.id ||
       a.status !== b.status ||
       a.roomId !== b.roomId ||
+      a.guestName !== b.guestName ||
       a.checkIn !== b.checkIn ||
       a.checkOut !== b.checkOut ||
       a.hasEarlyCheckIn !== b.hasEarlyCheckIn ||

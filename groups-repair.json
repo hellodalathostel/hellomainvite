@@ -1,0 +1,364 @@
+{
+  "1769178893819": {
+    "id": "1769178893819",
+    "customer": {
+      "name": "Mia",
+      "phone": "",
+      "source": "Khách quen",
+      "note": ""
+    },
+    "payment": {
+      "paid": 0
+    },
+    "roomIds": {
+      "1769178893819-101-0": "101",
+      "1769178893819-103-1": "103"
+    },
+    "status": "active",
+    "createdAt": 1769178893819,
+    "updatedAt": 1774748757439
+  },
+  "1769387030067": {
+    "id": "1769387030067",
+    "customer": {
+      "name": "nguyễn thanh hiếu",
+      "phone": "0969975935",
+      "source": "Walk-in",
+      "note": ""
+    },
+    "payment": {
+      "paid": 0
+    },
+    "roomIds": {
+      "1769387030067-101-0": "101",
+      "1769387030067-301-1": "301"
+    },
+    "status": "active",
+    "createdAt": 1769387030067,
+    "updatedAt": 1774748757439
+  },
+  "1769702539475": {
+    "id": "1769702539475",
+    "customer": {
+      "name": "Michael Zarnow",
+      "phone": "",
+      "source": "Booking.com",
+      "note": ""
+    },
+    "payment": {
+      "paid": 3999500
+    },
+    "roomIds": {
+      "1769702539475-103": "103",
+      "1769702539475-202": "202"
+    },
+    "status": "active",
+    "createdAt": 1769702539475,
+    "updatedAt": 1774748757439
+  },
+  "1769702918401": {
+    "id": "1769702918401",
+    "customer": {
+      "name": "Phát Trầm",
+      "phone": "",
+      "source": "Gọi điện/Zalo",
+      "note": ""
+    },
+    "payment": {
+      "paid": 0
+    },
+    "roomIds": {
+      "1769702918401-203": "203",
+      "1769702918401-302": "302"
+    },
+    "status": "active",
+    "createdAt": 1769702918401,
+    "updatedAt": 1774748757439
+  },
+  "1769704362945": {
+    "id": "1769704362945",
+    "customer": {
+      "name": "Phát Trầm",
+      "phone": "",
+      "source": "Gọi điện/Zalo",
+      "note": ""
+    },
+    "payment": {
+      "paid": 500000
+    },
+    "roomIds": {
+      "1769704362945-203": "203",
+      "1769704362945-302": "302"
+    },
+    "status": "active",
+    "createdAt": 1769704362945,
+    "updatedAt": 1774748757439
+  },
+  "158177b8-917f-4a08-88a8-41255ad0b82f": {
+    "customer": {
+      "name": "Alex Plamondon",
+      "note": "",
+      "phone": "",
+      "source": "Booking.com"
+    },
+    "payment": {
+      "depositMethod": "cash",
+      "paid": 0
+    },
+    "updatedAt": 1774748757439,
+    "id": "158177b8-917f-4a08-88a8-41255ad0b82f",
+    "roomIds": {
+      "1769722305791": "302"
+    },
+    "status": "active",
+    "createdAt": 1769722305791
+  },
+  "1769722523947": {
+    "customer": {
+      "name": "Franck Blaise",
+      "note": "",
+      "phone": "",
+      "source": "Booking.com"
+    },
+    "payment": {
+      "depositMethod": "cash",
+      "paid": 328104
+    },
+    "paymentHistory": [
+      {
+        "amount": 328104,
+        "createdAt": 1770806983848,
+        "date": "2026-02-11",
+        "method": "cash",
+        "note": "Thêm thanh toán"
+      },
+      {
+        "amount": -328104,
+        "createdAt": 1770806999985,
+        "date": "2026-02-11",
+        "method": "cash",
+        "note": "Giảm thanh toán"
+      }
+    ],
+    "updatedAt": 1774748757439,
+    "id": "1769722523947",
+    "roomIds": {
+      "1769722523947-301": "301",
+      "1769722523947-302": "302"
+    },
+    "status": "active",
+    "createdAt": 1769722523947
+  },
+  "dd9ca240-788c-4f71-a1a2-473dd822613a": {
+    "createdAt": 1769723052204,
+    "customer": {
+      "name": "Mr Hào",
+      "note": "",
+      "phone": "0797720810",
+      "source": "Facebook"
+    },
+    "id": "dd9ca240-788c-4f71-a1a2-473dd822613a",
+    "payment": {
+      "depositMethod": "cash",
+      "paid": 150000
+    },
+    "roomIds": {
+      "1769723052204": "102"
+    },
+    "status": "active",
+    "updatedAt": 1774748757439
+  },
+  "6079a543-d482-4ca8-b70e-8ad9df215a19": {
+    "createdAt": 1769723122634,
+    "customer": {
+      "name": "Paul",
+      "note": "1 xe gas 3 ngày tới 22/2",
+      "phone": "0352022610",
+      "source": "Gọi điện/Zalo"
+    },
+    "id": "6079a543-d482-4ca8-b70e-8ad9df215a19",
+    "payment": {
+      "depositMethod": "cash",
+      "paid": 1100000
+    },
+    "paymentHistory": [
+      {
+        "amount": -1255000,
+        "createdAt": 1771739750653,
+        "date": "2026-02-22",
+        "method": "cash",
+        "note": "Giảm thanh toán"
+      }
+    ],
+    "roomIds": {
+      "1769723122634": "103"
+    },
+    "status": "active",
+    "updatedAt": 1774748757439
+  },
+  "1769723206757": {
+    "customer": {
+      "name": "Mai Thị Bích Hảo",
+      "note": "",
+      "phone": "0325697675",
+      "source": "Gọi điện/Zalo"
+    },
+    "payment": {
+      "depositMethod": "cash",
+      "paid": 1600000
+    },
+    "updatedAt": 1774748757439,
+    "id": "1769723206757",
+    "roomIds": {
+      "1769723206757-102": "102",
+      "1769723206757-202": "202"
+    },
+    "status": "active",
+    "createdAt": 1769723206757
+  },
+  "1769723296038": {
+    "customer": {
+      "name": "Mr Huy",
+      "note": "",
+      "phone": "0866488224",
+      "source": "Gọi điện/Zalo"
+    },
+    "payment": {
+      "depositMethod": "cash",
+      "paid": 2000000
+    },
+    "updatedAt": 1774748757439,
+    "id": "1769723296038",
+    "roomIds": {
+      "1769723296038-301": "301",
+      "1769723296038-302": "302"
+    },
+    "status": "active",
+    "createdAt": 1769723296038
+  },
+  "1769723540981": {
+    "id": "1769723540981",
+    "customer": {
+      "name": "Hoàng Anh",
+      "phone": "",
+      "source": "Gọi điện/Zalo",
+      "note": ""
+    },
+    "payment": {
+      "paid": 1500000
+    },
+    "roomIds": {
+      "1769723540981-101": "101",
+      "1769723540981-102": "102",
+      "1769723540981-202": "202",
+      "1769723540981-203": "203",
+      "1769723540981-301": "301"
+    },
+    "status": "active",
+    "createdAt": 1769723540981,
+    "updatedAt": 1774748757439
+  },
+  "1769723788296": {
+    "customer": {
+      "name": "Nikolai Tarasov",
+      "note": "",
+      "phone": "",
+      "source": "Booking.com"
+    },
+    "payment": {
+      "depositMethod": "transfer",
+      "paid": 2030000
+    },
+    "updatedAt": 1774748757439,
+    "id": "1769723788296",
+    "roomIds": {
+      "1769723788296-102": "102",
+      "1769723788296-202": "202"
+    },
+    "status": "active",
+    "createdAt": 1769723788296
+  },
+  "b6a9ed48-7a2c-467b-b8ec-1c607c3aa366": {
+    "createdAt": 1769724130581,
+    "customer": {
+      "name": "gordon stidwill",
+      "note": "",
+      "otaBookingNumber": "5844059107",
+      "phone": "5844059107",
+      "source": "Booking.com"
+    },
+    "id": "b6a9ed48-7a2c-467b-b8ec-1c607c3aa366",
+    "payment": {
+      "depositMethod": "transfer",
+      "paid": 0
+    },
+    "roomIds": {
+      "1769724130581": "103"
+    },
+    "status": "active",
+    "updatedAt": 1774748757439
+  },
+  "1769743259222": {
+    "id": "1769743259222",
+    "customer": {
+      "name": "Hoàng Anh",
+      "phone": "",
+      "source": "Vãng lai (Walk-in)",
+      "note": ""
+    },
+    "payment": {
+      "paid": 1500000
+    },
+    "roomIds": {
+      "1769743259222-101": "101",
+      "1769743259222-202": "202",
+      "1769743259222-203": "203",
+      "1769743259222-302": "302"
+    },
+    "status": "active",
+    "createdAt": 1769743259222,
+    "updatedAt": 1774748757439
+  },
+  "1769743387612": {
+    "customer": {
+      "name": "Hoàng Anh",
+      "note": "",
+      "phone": "",
+      "source": "Vãng lai (Walk-in)"
+    },
+    "payment": {
+      "depositMethod": "cash",
+      "paid": 1500000
+    },
+    "updatedAt": 1774748757439,
+    "id": "1769743387612",
+    "roomIds": {
+      "1769743387612-101": "101",
+      "1769743387612-203": "203",
+      "1769743387612-301": "301",
+      "1769743387612-302": "302"
+    },
+    "status": "active",
+    "createdAt": 1769743387612
+  },
+  "1769769727437": {
+    "customer": {
+      "name": "Mia HDV",
+      "note": "",
+      "phone": "",
+      "source": "Khách quen"
+    },
+    "payment": {
+      "depositMethod": "cash",
+      "paid": 0
+    },
+    "updatedAt": 1774748757439,
+    "id": "1769769727437",
+    "roomIds": {
+      "1769769727437-101": "101",
+      "1769769727437-103": "102"
+    },
+    "status": "active",
+    "createdAt": 1769769727437
+  }
+}

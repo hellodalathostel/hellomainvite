@@ -179,6 +179,96 @@
 				"vitest"
 			],
 			"isBackground": false
+		},
+		{
+			"label": "Fetch Groups Snapshot",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$fb=Join-Path $env:APPDATA 'npm\\firebase.cmd'; & $fb database:get /groups --project hello-dalat-manager | Set-Content groups-snapshot.json"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Fetch Bookings Snapshot",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$fb=Join-Path $env:APPDATA 'npm\\firebase.cmd'; & $fb database:get /bookings --project hello-dalat-manager | Set-Content bookings-snapshot.json"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Firebase DB Help",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$fb=Join-Path $env:APPDATA 'npm\\firebase.cmd'; & $fb help database | Set-Content firebase-db-help.txt"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Generate Group Repairs",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/repair-legacy-groups.mjs",
+				"groups-snapshot.json",
+				"bookings-snapshot.json",
+				"groups-repair.json"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Count Group Repairs",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"(Get-Content groups-repair.json -Raw | ConvertFrom-Json | Get-Member -MemberType NoteProperty).Count"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Regenerate Group Repairs",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/repair-legacy-groups.mjs",
+				"groups-snapshot.json",
+				"bookings-snapshot.json",
+				"groups-repair.json"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Recount Group Repairs",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"(Get-Content groups-repair.json -Raw | ConvertFrom-Json | Get-Member -MemberType NoteProperty).Count"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Apply Group Repairs",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$fb=Join-Path $env:APPDATA 'npm\\firebase.cmd'; & $fb database:update /groups groups-repair.json --project hello-dalat-manager"
+			],
+			"isBackground": false
 		}
 	]
 }
