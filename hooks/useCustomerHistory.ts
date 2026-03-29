@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ref, onValue, update, push, get, remove } from "firebase/database";
 import { db } from '../config/database';
 import type { CustomerRecord, CustomerUsageRecord } from '../types/types';
+import { hasMeaningfulGuestName, MISSING_GUEST_NAME } from '../utils/dataConverters';
 import { now } from '../utils/utils';
 
 const PAGE_SIZE = 50;
@@ -254,7 +255,7 @@ export const useCustomerHistory = () => {
           }
 
           // Update name if different (prefer longer/more complete name)
-          if (booking.guestName && booking.guestName.length > existing.name.length) {
+          if (hasMeaningfulGuestName(booking.guestName) && booking.guestName.length > existing.name.length) {
             updates.name = booking.guestName;
             needsUpdate = true;
           }
@@ -272,7 +273,7 @@ export const useCustomerHistory = () => {
           const cccd = booking.guests && booking.guests.length > 0 ? booking.guests[0].cccd : '';
           
           await saveCustomer({
-            name: booking.guestName || 'Unknown',
+            name: hasMeaningfulGuestName(booking.guestName) ? booking.guestName : MISSING_GUEST_NAME,
             phone,
             cccd,
             source: booking.source,

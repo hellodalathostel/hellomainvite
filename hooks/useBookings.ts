@@ -4,7 +4,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { db } from '../config/database';
 import type { Booking, BookingEntity, GroupEntity, Service, Discount } from '../types/types';
 import { getDaysDiff, addDays, formatCurrency, isOverlap, now } from '../utils/utils';
-import { mergeBookingData } from '../utils/dataConverters';
+import { hasMeaningfulGuestName, mergeBookingData } from '../utils/dataConverters';
 import { syncBookingsToSheets, syncExpensesToSheets } from '../utils/sheetsSync';
 import { useAudit } from './useAudit';
 import type { SuggestedGuest, SaveBookingPayload } from '../types/bookingForm';
@@ -354,7 +354,7 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
         const normalizedPhone = booking.phone.replace(/\s+/g, '').toLowerCase();
         if (normalizedPhone && !phoneMap[normalizedPhone]) {
           phoneMap[normalizedPhone] = {
-            guestName: booking.guestName,
+            guestName: hasMeaningfulGuestName(booking.guestName) ? booking.guestName : undefined,
             source: booking.source,
             phone: booking.phone,
             otaBookingNumber: booking.otaBookingNumber,
@@ -362,7 +362,7 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
         }
       }
 
-      if (booking.guestName) {
+      if (hasMeaningfulGuestName(booking.guestName)) {
         const normalizedName = booking.guestName.trim().toLowerCase();
         if (normalizedName && !nameMap[normalizedName]) {
           nameMap[normalizedName] = {

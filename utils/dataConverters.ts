@@ -16,6 +16,27 @@ type LegacyBookingFields = {
 
 type UnknownRecord = Record<string, unknown>;
 
+export const MISSING_GUEST_NAME = 'Chua co ten khach';
+
+const normalizeText = (value?: string) => (typeof value === 'string' ? value.trim() : '');
+
+export const hasMeaningfulGuestName = (value?: string) => {
+  const normalized = normalizeText(value).toLowerCase();
+  if (!normalized) return false;
+
+  return normalized !== 'unknown' && normalized !== 'unknow' && normalized !== MISSING_GUEST_NAME.toLowerCase();
+};
+
+const getDisplayGuestName = (group?: GroupEntity, legacyGuestName?: string) => {
+  const groupName = normalizeText(group?.customer?.name);
+  if (hasMeaningfulGuestName(groupName)) return groupName;
+
+  const legacyName = normalizeText(legacyGuestName);
+  if (hasMeaningfulGuestName(legacyName)) return legacyName;
+
+  return MISSING_GUEST_NAME;
+};
+
 export const mergeBookingData = (
     b: BookingEntity, 
     group?: GroupEntity
@@ -30,11 +51,11 @@ export const mergeBookingData = (
 
     const totalAmount = roomCharge + serviceTotal + getEffectiveBookingSurcharge(b) - discountTotal;
 
-    const guestName = group ? group.customer.name : legacy.guestName || 'Unknown';
-    const phone = group ? group.customer.phone : legacy.phone || '';
-    const otaBookingNumber = group ? group.customer.otaBookingNumber || '' : legacy.otaBookingNumber || '';
-    const source = group ? group.customer.source : legacy.source || 'Vãng lai';
-    const note = group ? group.customer.note : legacy.note || '';
+    const guestName = getDisplayGuestName(group, legacy.guestName);
+    const phone = normalizeText(group?.customer.phone) || normalizeText(legacy.phone);
+    const otaBookingNumber = normalizeText(group?.customer.otaBookingNumber) || normalizeText(legacy.otaBookingNumber);
+    const source = normalizeText(group?.customer.source) || normalizeText(legacy.source) || 'Vãng lai';
+    const note = normalizeText(group?.customer.note) || normalizeText(legacy.note);
     
     const paid = normalizeMoneyAmount(group?.payment.paid ?? legacy.paid); 
     const paymentMethod = legacy.paymentMethod; 
