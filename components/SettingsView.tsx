@@ -50,7 +50,7 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
 
     const [newService, setNewService] = useState({ name: '', price: 0 });
     const [newDiscount, setNewDiscount] = useState({ description: '', amount: 0 });
-    const [newRoom, setNewRoom] = useState<Partial<RoomDefinition>>({ id: '', name: '', price: 0 });
+    const [newRoom, setNewRoom] = useState<Partial<RoomDefinition>>({ id: '', name: '', price: 0, isVirtual: false });
     const [isSyncingSheets, setIsSyncingSheets] = useState(false);
     const resolvedBank = findVietQrBank(propertyInfo.bankCode, propertyInfo.bankName);
     const [bankForm, setBankForm] = useState({
@@ -71,9 +71,9 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     }, [propertyInfo.bankCode, propertyInfo.bankName, propertyInfo.bankAccountNumber, propertyInfo.bankOwner]);
 
     const handleAddRoom = () => {
-        if (!newRoom.id || !newRoom.price) return;
-        actions.saveRoom({ id: newRoom.id, name: newRoom.name || newRoom.id, price: newRoom.price });
-        setNewRoom({ id: '', name: '', price: 0 });
+        if (!newRoom.id || (!newRoom.price && !newRoom.isVirtual)) return;
+        actions.saveRoom({ id: newRoom.id, name: newRoom.name || newRoom.id, price: newRoom.price ?? 0, isVirtual: newRoom.isVirtual || false });
+        setNewRoom({ id: '', name: '', price: 0, isVirtual: false });
         addToast('Đã lưu thông tin phòng', 'success');
     };
 
@@ -227,17 +227,29 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                             placeholder="Giá"
                             value={newRoom.price || 0}
                             onChange={val => setNewRoom({...newRoom, price: val})}
-                            className="w-28 p-2 border rounded-xl outline-none text-sm text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400"
+                            className={`w-28 p-2 border rounded-xl outline-none text-sm text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white placeholder-gray-400 ${newRoom.isVirtual ? 'opacity-40 pointer-events-none' : ''}`}
                         />
+                        <label className="flex items-center gap-1.5 text-xs text-orange-600 dark:text-orange-400 cursor-pointer whitespace-nowrap font-bold select-none">
+                            <input
+                                type="checkbox"
+                                checked={newRoom.isVirtual || false}
+                                onChange={e => setNewRoom({...newRoom, isVirtual: e.target.checked, price: e.target.checked ? 0 : newRoom.price})}
+                                className="rounded accent-orange-500"
+                            />
+                            Phòng chờ
+                        </label>
                         <button onClick={handleAddRoom} className="bg-blue-600 text-white px-4 rounded-xl font-bold hover:bg-blue-700"><Plus size={20}/></button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto custom-scrollbar">
                         {rooms.map(r => (
-                            <div key={r.id} className="flex justify-between items-center p-3 bg-gray-50 rounded border border-gray-100 dark:bg-gray-900 dark:border-gray-700">
+                            <div key={r.id} className={`flex justify-between items-center p-3 bg-gray-50 rounded border dark:bg-gray-900 ${r.isVirtual ? 'border-orange-300 dark:border-orange-700' : 'border-gray-100 dark:border-gray-700'}`}>
                                 <span className="font-bold text-blue-800 dark:text-blue-300 w-16">{r.id}</span>
                                 <span className="font-medium text-sm text-gray-900 dark:text-gray-200 flex-1 truncate">{r.name}</span>
                                 <div className="flex items-center gap-2">
-                                    <span className="font-bold text-gray-900 text-xs dark:text-white">{formatCurrency(r.price)}</span>
+                                    {r.isVirtual
+                                        ? <span className="text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-900/30 px-1.5 py-0.5 rounded">CHỜ</span>
+                                        : <span className="font-bold text-gray-900 text-xs dark:text-white">{formatCurrency(r.price)}</span>
+                                    }
                                     <button onClick={() => handleDeleteRoom(r.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={14}/></button>
                                 </div>
                             </div>

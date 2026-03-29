@@ -187,6 +187,7 @@ export interface RoomDefinition {
   id: string;
   name: string;
   price: number;
+  isVirtual?: boolean;
 }
 
 export interface PropertyInfo {

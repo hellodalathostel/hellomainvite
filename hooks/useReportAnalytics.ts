@@ -157,7 +157,7 @@ export const buildDailyAccountingExportRows = (dailyRevenue: DailyRevenueData[])
   }));
 };
 
-export const buildReportAnalytics = (bookings: Booking[], startDate?: string, endDate?: string): ReportAnalyticsResult => {
+export const buildReportAnalytics = (bookings: Booking[], startDate?: string, endDate?: string, virtualRoomIds?: Set<string>): ReportAnalyticsResult => {
   const checkedOutBookings = (bookings || []).filter(b => {
     if (b.status !== 'checked-out') return false;
     if (startDate && b.checkOut < startDate) return false;
@@ -199,18 +199,20 @@ export const buildReportAnalytics = (bookings: Booking[], startDate?: string, en
     dailyRevenueMap[b.date].surchargeRevenue += b.surchargeRevenue;
     dailyRevenueMap[b.date].bookingCount += 1;
 
-    if (!roomRevenueMap[b.roomId]) {
-      roomRevenueMap[b.roomId] = {
-        roomId: b.roomId,
-        revenue: 0,
-        nights: 0,
-        bookingCount: 0,
-        occupancyRate: 0,
-      };
+    if (!virtualRoomIds?.has(b.roomId)) {
+      if (!roomRevenueMap[b.roomId]) {
+        roomRevenueMap[b.roomId] = {
+          roomId: b.roomId,
+          revenue: 0,
+          nights: 0,
+          bookingCount: 0,
+          occupancyRate: 0,
+        };
+      }
+      roomRevenueMap[b.roomId].revenue += b.revenue;
+      roomRevenueMap[b.roomId].nights += b.nights;
+      roomRevenueMap[b.roomId].bookingCount += 1;
     }
-    roomRevenueMap[b.roomId].revenue += b.revenue;
-    roomRevenueMap[b.roomId].nights += b.nights;
-    roomRevenueMap[b.roomId].bookingCount += 1;
 
     if (!sourceRevenueMap[b.source]) {
       sourceRevenueMap[b.source] = {
@@ -318,6 +320,6 @@ export const buildReportAnalytics = (bookings: Booking[], startDate?: string, en
   };
 };
 
-export const useReportAnalytics = (bookings: Booking[], startDate?: string, endDate?: string) => {
-  return useMemo(() => buildReportAnalytics(bookings, startDate, endDate), [bookings, startDate, endDate]);
+export const useReportAnalytics = (bookings: Booking[], startDate?: string, endDate?: string, virtualRoomIds?: Set<string>) => {
+  return useMemo(() => buildReportAnalytics(bookings, startDate, endDate, virtualRoomIds), [bookings, startDate, endDate, virtualRoomIds]);
 };

@@ -11,6 +11,8 @@ import { BarChart, PieChart as PieChartComponent, LineChart } from './charts/Cha
 const ReportView = () => {
   const { bookings, expenses, rooms, roomStates } = useData();
   const { addToast } = useUI();
+  const virtualRoomIds = useMemo(() => new Set(rooms.filter(r => r.isVirtual).map(r => r.id)), [rooms]);
+  const realRooms = useMemo(() => rooms.filter(r => !r.isVirtual), [rooms]);
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showDetails, setShowDetails] = useState(true);
   const [activeTab, setActiveTab] = useState<'summary' | 'daily' | 'room' | 'source' | 'customer'>('summary');
@@ -57,7 +59,7 @@ const ReportView = () => {
     roomRevenueByMonth,
     roomRevenueByQuarter,
     roomRevenueByYear,
-  } = useReportAnalytics(reportBookings, dateRange.start, dateRange.end);
+  } = useReportAnalytics(reportBookings, dateRange.start, dateRange.end, virtualRoomIds);
 
   const stats = useMemo(() => {
     if(!bookings || !expenses) return { 
@@ -110,14 +112,15 @@ const ReportView = () => {
     const rangeEndInclusive = dateRange.end;
     const rangeEndExclusive = addDays(rangeEndInclusive, 1);
     const totalDaysInRange = getDaysDiff(rangeStart, rangeEndExclusive);
-    const totalAvailableNights = rooms.length * totalDaysInRange;
+    const totalAvailableNights = realRooms.length * totalDaysInRange;
     
     let totalNightsSold = 0;
 
     const activeBookings = bookings.filter(b => 
-        b.status !== 'cancelled' && 
-      b.checkIn < rangeEndExclusive && 
-      b.checkOut > rangeStart
+        b.status !== 'cancelled' &&
+        !virtualRoomIds.has(b.roomId) &&
+        b.checkIn < rangeEndExclusive && 
+        b.checkOut > rangeStart
     );
 
     activeBookings.forEach(b => {
@@ -162,7 +165,7 @@ const ReportView = () => {
     );
 
     const dirtyRooms = rooms.filter(r => roomStates[r.id] === 'dirty').length;
-    const emptyRooms = Math.max(0, rooms.length - activeRoomIds.size);
+    const emptyRooms = Math.max(0, realRooms.length - activeRoomIds.size);
 
     const dueCollection = bookings
       .filter(b => b.status !== 'cancelled' && inRange(b.checkOut))
