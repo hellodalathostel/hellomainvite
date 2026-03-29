@@ -66,12 +66,18 @@ export const useMasterData = (user: { uid: string } | null, enabled = true) => {
     });
 
     const unsubRooms = onValue(ref(db, 'app_data/rooms'), (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            setRooms(Object.values(data));
-        } else {
-            setRooms(DEFAULT_ROOM_DATA);
-        }
+      const data = snapshot.val() as Record<string, RoomDefinition> | null;
+      const roomsMap = new Map(DEFAULT_ROOM_DATA.map(room => [room.id, room] as const));
+
+      if (data) {
+        Object.values(data).forEach((room) => {
+          if (room?.id) {
+            roomsMap.set(room.id, room);
+          }
+        });
+      }
+
+      setRooms(Array.from(roomsMap.values()));
     });
 
     const unsubProperty = onValue(ref(db, 'app_data/property_info'), (snapshot) => {

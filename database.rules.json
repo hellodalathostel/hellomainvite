@@ -38,13 +38,13 @@
     },
 
     "rooms": {
-      ".write": "root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'owner@hellodalat.com' || auth.token.email === 'admin@hellodalat.com')"
     },
     "services": {
-      ".write": "root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'owner@hellodalat.com' || auth.token.email === 'admin@hellodalat.com')"
     },
     "app_data": {
-      ".write": "root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'owner@hellodalat.com' || auth.token.email === 'admin@hellodalat.com')"
     }
   }
 }
