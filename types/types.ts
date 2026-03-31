@@ -190,6 +190,28 @@ export interface RoomDefinition {
   isVirtual?: boolean;
 }
 
+export interface BookingComIcalRoomConfig {
+  roomId: string;
+  roomName?: string;
+  importUrl?: string;
+  exportUrl?: string;
+  importEnabled?: boolean;
+  exportEnabled?: boolean;
+  lastImportedAt?: number;
+  lastExportedAt?: number;
+  lastImportHash?: string;
+}
+
+export interface BookingComIcalConfig {
+  provider: 'Booking.com';
+  rooms: Record<string, BookingComIcalRoomConfig>;
+  updatedAt?: number;
+}
+
+export interface ExternalSyncConfig {
+  bookingComIcal?: BookingComIcalConfig;
+}
+
 export interface PropertyInfo {
   name: string;
   address: string;
@@ -202,6 +224,7 @@ export interface PropertyInfo {
   bankOwner?: string;
   invoiceHeader?: string;
   invoiceFooter?: string;
+  externalSync?: ExternalSyncConfig;
 }
 
 export interface ToastMessage {

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Plus, Trash2, Tag, Settings, Bed, ChevronDown, ArrowRightCircle, Clock, Users, Moon, Sun, Download, CreditCard } from 'lucide-react';
-import { RoomDefinition, ServiceDefinition, DiscountDefinition, Booking, BeforeInstallPromptEvent } from '../types/types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ShoppingBag, Plus, Trash2, Tag, Settings, Bed, ChevronDown, ArrowRightCircle, Clock, Users, Moon, Sun, Download, CreditCard, Link2 } from 'lucide-react';
+import { RoomDefinition, ServiceDefinition, DiscountDefinition, Booking, BeforeInstallPromptEvent, BookingComIcalRoomConfig } from '../types/types';
 import { findVietQrBank, VIETQR_BANKS } from '../config/constants';
 import { formatCurrency } from '../utils/utils';
+import { buildBookingComIcalRoomConfigs, countConfiguredBookingComIcalRooms } from '../utils/bookingComIcalConfig';
 import CurrencyInput from './CurrencyInput';
 import { useUI } from '../context/UIContext';
 import { useData } from '../context/DataContext';
@@ -52,6 +53,7 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     const [newDiscount, setNewDiscount] = useState({ description: '', amount: 0 });
     const [newRoom, setNewRoom] = useState<Partial<RoomDefinition>>({ id: '', name: '', price: 0, isVirtual: false });
     const [isSyncingSheets, setIsSyncingSheets] = useState(false);
+    const [isSavingBookingIcalConfig, setIsSavingBookingIcalConfig] = useState(false);
     const resolvedBank = findVietQrBank(propertyInfo.bankCode, propertyInfo.bankName);
     const [bankForm, setBankForm] = useState({
         bankCode: resolvedBank?.code || propertyInfo.bankCode || '',
@@ -59,6 +61,15 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
         bankAccountNumber: propertyInfo.bankAccountNumber || '',
         bankOwner: propertyInfo.bankOwner || '',
     });
+    const bookingComIcalRooms = useMemo(
+        () => buildBookingComIcalRoomConfigs(rooms, propertyInfo.externalSync?.bookingComIcal?.rooms),
+        [rooms, propertyInfo.externalSync?.bookingComIcal?.rooms]
+    );
+    const [bookingComIcalForm, setBookingComIcalForm] = useState<Record<string, BookingComIcalRoomConfig>>(bookingComIcalRooms);
+    const bookingComIcalSummary = useMemo(
+        () => countConfiguredBookingComIcalRooms(bookingComIcalForm),
+        [bookingComIcalForm]
+    );
 
     useEffect(() => {
         const nextBank = findVietQrBank(propertyInfo.bankCode, propertyInfo.bankName);
@@ -69,6 +80,10 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
             bankOwner: propertyInfo.bankOwner || '',
         });
     }, [propertyInfo.bankCode, propertyInfo.bankName, propertyInfo.bankAccountNumber, propertyInfo.bankOwner]);
+
+    useEffect(() => {
+        setBookingComIcalForm(bookingComIcalRooms);
+    }, [bookingComIcalRooms]);
 
     const handleAddRoom = () => {
         if (!newRoom.id || (!newRoom.price && !newRoom.isVirtual)) return;
@@ -113,6 +128,48 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
             addToast(`Sync thất bại: ${String(error)}`, 'error');
         } finally {
             setIsSyncingSheets(false);
+        }
+    };
+
+    const updateBookingComIcalRoomField = <K extends keyof BookingComIcalRoomConfig>(
+        roomId: string,
+        key: K,
+        value: BookingComIcalRoomConfig[K]
+    ) => {
+        setBookingComIcalForm((prev) => {
+            const current = prev[roomId] || bookingComIcalRooms[roomId];
+
+            return {
+                ...prev,
+                [roomId]: {
+                    ...current,
+                    roomId,
+                    roomName: rooms.find((room) => room.id === roomId)?.name || current?.roomName || roomId,
+                    [key]: value,
+                },
+            };
+        });
+    };
+
+    const handleSaveBookingComIcalConfig = async () => {
+        setIsSavingBookingIcalConfig(true);
+        try {
+            const normalizedRooms = buildBookingComIcalRoomConfigs(rooms, bookingComIcalForm);
+            await actions.updateProperty({
+                externalSync: {
+                    ...(propertyInfo.externalSync || {}),
+                    bookingComIcal: {
+                        provider: 'Booking.com',
+                        rooms: normalizedRooms,
+                        updatedAt: Date.now(),
+                    },
+                },
+            });
+            addToast('Đã lưu cấu hình Booking.com iCal', 'success');
+        } catch (error) {
+            addToast(`Lưu cấu hình iCal thất bại: ${String(error)}`, 'error');
+        } finally {
+            setIsSavingBookingIcalConfig(false);
         }
     };
 
@@ -349,6 +406,114 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                     className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors"
                                 >
                                     Lưu thông tin ngân hàng
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {userRole === 'owner' && (
+                        <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4">
+                            <div className="flex items-start gap-3">
+                                <Link2 size={20} className="text-indigo-600 mt-0.5" />
+                                <div className="flex-1">
+                                    <p className="font-bold text-gray-900 dark:text-white">Booking.com iCal theo từng phòng</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                                        Lưu trước cấu hình import/export cho 8 phòng. Pha kế tiếp sẽ dùng dữ liệu này để preview đồng bộ Booking.com -&gt; DB và feed block availability tạm thời.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+                                    <p className="text-gray-500 dark:text-gray-400">Room có import URL</p>
+                                    <p className="mt-1 text-lg font-bold text-gray-900 dark:text-white">{bookingComIcalSummary.importRooms}/{rooms.length}</p>
+                                </div>
+                                <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+                                    <p className="text-gray-500 dark:text-gray-400">Import đang bật</p>
+                                    <p className="mt-1 text-lg font-bold text-green-700 dark:text-green-400">{bookingComIcalSummary.enabledImports}</p>
+                                </div>
+                                <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+                                    <p className="text-gray-500 dark:text-gray-400">Room có export URL</p>
+                                    <p className="mt-1 text-lg font-bold text-gray-900 dark:text-white">{bookingComIcalSummary.exportRooms}/{rooms.length}</p>
+                                </div>
+                                <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3">
+                                    <p className="text-gray-500 dark:text-gray-400">Export đang bật</p>
+                                    <p className="mt-1 text-lg font-bold text-indigo-700 dark:text-indigo-400">{bookingComIcalSummary.enabledExports}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 max-h-[28rem] overflow-y-auto custom-scrollbar pr-1">
+                                {rooms.map((room) => {
+                                    const roomConfig = bookingComIcalForm[room.id] || bookingComIcalRooms[room.id];
+
+                                    return (
+                                        <div key={room.id} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 space-y-3">
+                                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                                <div>
+                                                    <p className="font-bold text-gray-900 dark:text-white">{room.id} - {room.name}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">Cặp feed này sẽ là nền cho import Booking.com -&gt; DB và export block availability theo ngày.</p>
+                                                </div>
+                                                <div className="flex gap-4 text-xs">
+                                                    <label className="flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={Boolean(roomConfig?.importEnabled)}
+                                                            onChange={(e) => updateBookingComIcalRoomField(room.id, 'importEnabled', e.target.checked)}
+                                                            className="rounded accent-green-600"
+                                                            disabled={!roomConfig?.importUrl}
+                                                        />
+                                                        Bật import
+                                                    </label>
+                                                    <label className="flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={Boolean(roomConfig?.exportEnabled)}
+                                                            onChange={(e) => updateBookingComIcalRoomField(room.id, 'exportEnabled', e.target.checked)}
+                                                            className="rounded accent-indigo-600"
+                                                            disabled={!roomConfig?.exportUrl}
+                                                        />
+                                                        Bật export
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Import URL từ Booking.com</label>
+                                                    <input
+                                                        value={roomConfig?.importUrl || ''}
+                                                        onChange={(e) => updateBookingComIcalRoomField(room.id, 'importUrl', e.target.value)}
+                                                        placeholder="https://admin.booking.com/.../calendar.ics"
+                                                        className="w-full p-2 border rounded-lg outline-none text-sm text-gray-900 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                    />
+                                                    <p className="text-[11px] text-gray-500 dark:text-gray-400">Feed đọc từ Booking.com để nhập booking về DB.</p>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Export URL cho Booking.com import</label>
+                                                    <input
+                                                        value={roomConfig?.exportUrl || ''}
+                                                        onChange={(e) => updateBookingComIcalRoomField(room.id, 'exportUrl', e.target.value)}
+                                                        placeholder="https://your-domain.example/ical/101.ics"
+                                                        className="w-full p-2 border rounded-lg outline-none text-sm text-gray-900 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                    />
+                                                    <p className="text-[11px] text-gray-500 dark:text-gray-400">Feed công khai sẽ dùng cho pha tạm thời DB -&gt; Booking để block ngày.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Lưu ý: app hiện chưa có parser iCal hay feed generator. Mục này chỉ lưu cấu hình để dùng cho bước implementation kế tiếp.
+                                </p>
+                                <button
+                                    onClick={handleSaveBookingComIcalConfig}
+                                    disabled={isSavingBookingIcalConfig}
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    {isSavingBookingIcalConfig ? 'Đang lưu cấu hình...' : 'Lưu cấu hình Booking.com iCal'}
                                 </button>
                             </div>
                         </div>
