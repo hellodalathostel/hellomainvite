@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingBag, Plus, Trash2, Tag, Settings, Bed, ChevronDown, ArrowRightCircle, Clock, Users, Moon, Sun, Download, CreditCard, Link2 } from 'lucide-react';
+import { ShoppingBag, Plus, Trash2, Tag, Settings, Bed, ChevronDown, ArrowRightCircle, Clock, Users, Moon, Sun, Download, CreditCard, Link2, FileDown } from 'lucide-react';
 import { RoomDefinition, ServiceDefinition, DiscountDefinition, Booking, BeforeInstallPromptEvent, BookingComIcalRoomConfig } from '../types/types';
 import { findVietQrBank, VIETQR_BANKS } from '../config/constants';
 import { formatCurrency } from '../utils/utils';
 import { buildBookingComIcalRoomConfigs, countConfiguredBookingComIcalRooms } from '../utils/bookingComIcalConfig';
+import { downloadRoomIcal, downloadAllRoomsIcal } from '../utils/icalGenerator';
 import CurrencyInput from './CurrencyInput';
 import { useUI } from '../context/UIContext';
 import { useData } from '../context/DataContext';
@@ -149,6 +150,17 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                 },
             };
         });
+    };
+
+    const handleExportRoomIcal = (roomId: string, roomName: string) => {
+        downloadRoomIcal(bookings, roomId, roomName);
+        addToast(`Đã xuất file .ics cho phòng ${roomId}`, 'success');
+    };
+
+    const handleExportAllRoomsIcal = () => {
+        const nonVirtualRooms = rooms.filter((r) => !r.isVirtual);
+        downloadAllRoomsIcal(bookings, nonVirtualRooms);
+        addToast(`Đã xuất file .ics cho ${nonVirtualRooms.length} phòng`, 'success');
     };
 
     const handleSaveBookingComIcalConfig = async () => {
@@ -453,7 +465,7 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                                     <p className="font-bold text-gray-900 dark:text-white">{room.id} - {room.name}</p>
                                                     <p className="text-xs text-gray-500 dark:text-gray-400">Cặp feed này sẽ là nền cho import Booking.com -&gt; DB và export block availability theo ngày.</p>
                                                 </div>
-                                                <div className="flex gap-4 text-xs">
+                                                <div className="flex flex-wrap gap-3 text-xs items-center">
                                                     <label className="flex items-center gap-2 font-medium text-gray-700 dark:text-gray-300">
                                                         <input
                                                             type="checkbox"
@@ -474,6 +486,13 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                                         />
                                                         Bật export
                                                     </label>
+                                                    <button
+                                                        onClick={() => handleExportRoomIcal(room.id, room.name)}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white rounded-lg font-bold text-xs hover:bg-teal-700 transition-colors"
+                                                        title={`Tải .ics block availability cho phòng ${room.id}`}
+                                                    >
+                                                        <FileDown size={14} /> Export .ics
+                                                    </button>
                                                 </div>
                                             </div>
 
@@ -504,17 +523,25 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                 })}
                             </div>
 
-                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Lưu ý: app hiện chưa có parser iCal hay feed generator. Mục này chỉ lưu cấu hình để dùng cho bước implementation kế tiếp.
+                                    Export .ics tạo file block availability từ booking nội bộ — tải về rồi import thủ công vào Booking.com extranet để block ngày tương ứng trong pha chuyển tiếp. Import URL sẽ dùng cho bước parser kế tiếp.
                                 </p>
-                                <button
-                                    onClick={handleSaveBookingComIcalConfig}
-                                    disabled={isSavingBookingIcalConfig}
-                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    {isSavingBookingIcalConfig ? 'Đang lưu cấu hình...' : 'Lưu cấu hình Booking.com iCal'}
-                                </button>
+                                <div className="flex flex-shrink-0 gap-2">
+                                    <button
+                                        onClick={handleExportAllRoomsIcal}
+                                        className="px-4 py-2 bg-teal-600 text-white rounded-lg font-bold text-sm hover:bg-teal-700 transition-colors flex items-center gap-2"
+                                    >
+                                        <FileDown size={16} /> Export tất cả
+                                    </button>
+                                    <button
+                                        onClick={handleSaveBookingComIcalConfig}
+                                        disabled={isSavingBookingIcalConfig}
+                                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        {isSavingBookingIcalConfig ? 'Đang lưu...' : 'Lưu cấu hình'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
