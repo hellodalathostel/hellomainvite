@@ -4,7 +4,9 @@ import { RoomDefinition, ServiceDefinition, DiscountDefinition, Booking, BeforeI
 import { findVietQrBank, VIETQR_BANKS } from '../config/constants';
 import { formatCurrency } from '../utils/utils';
 import { buildBookingComIcalRoomConfigs, countConfiguredBookingComIcalRooms } from '../utils/bookingComIcalConfig';
+import { buildSaveBookingPayloadFromPreview, createImportPreviewHash } from '../utils/bookingComImport';
 import { downloadRoomIcal, downloadAllRoomsIcal } from '../utils/icalGenerator';
+import { buildBookingComImportPreview, type BookingComImportPreviewItem, parseIcalEvents } from '../utils/icalParser';
 import CurrencyInput from './CurrencyInput';
 import { useUI } from '../context/UIContext';
 import { useData } from '../context/DataContext';
@@ -55,6 +57,11 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     const [newRoom, setNewRoom] = useState<Partial<RoomDefinition>>({ id: '', name: '', price: 0, isVirtual: false });
     const [isSyncingSheets, setIsSyncingSheets] = useState(false);
     const [isSavingBookingIcalConfig, setIsSavingBookingIcalConfig] = useState(false);
+    const [importIcalTextByRoom, setImportIcalTextByRoom] = useState<Record<string, string>>({});
+    const [importPreviewByRoom, setImportPreviewByRoom] = useState<Record<string, BookingComImportPreviewItem[]>>({});
+    const [importPreviewErrorByRoom, setImportPreviewErrorByRoom] = useState<Record<string, string>>({});
+    const [selectedImportPreviewIdsByRoom, setSelectedImportPreviewIdsByRoom] = useState<Record<string, string[]>>({});
+    const [isApplyingImportPreviewByRoom, setIsApplyingImportPreviewByRoom] = useState<Record<string, boolean>>({});
     const resolvedBank = findVietQrBank(propertyInfo.bankCode, propertyInfo.bankName);
     const [bankForm, setBankForm] = useState({
         bankCode: resolvedBank?.code || propertyInfo.bankCode || '',
@@ -161,6 +168,164 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
         const nonVirtualRooms = rooms.filter((r) => !r.isVirtual);
         downloadAllRoomsIcal(bookings, nonVirtualRooms);
         addToast(`Đã xuất file .ics cho ${nonVirtualRooms.length} phòng`, 'success');
+    };
+
+    const handlePreviewBookingComIcal = (roomId: string, roomName: string) => {
+        const content = (importIcalTextByRoom[roomId] || '').trim();
+        if (!content) {
+            addToast(`Chưa có nội dung iCal cho phòng ${roomId}`, 'info');
+            return;
+        }
+
+        try {
+            const parsedEvents = parseIcalEvents(content);
+            const preview = buildBookingComImportPreview(parsedEvents, roomId, roomName, bookings);
+            const selectableIds = preview
+                .filter((item) => item.action === 'create' || item.action === 'update')
+                .map((item) => item.uid);
+
+            setImportPreviewByRoom((prev) => ({ ...prev, [roomId]: preview }));
+            setImportPreviewErrorByRoom((prev) => ({ ...prev, [roomId]: '' }));
+            setSelectedImportPreviewIdsByRoom((prev) => ({ ...prev, [roomId]: selectableIds }));
+            addToast(`Đã preview ${preview.length} dòng iCal cho phòng ${roomId}`, 'success');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            setImportPreviewErrorByRoom((prev) => ({ ...prev, [roomId]: message }));
+            addToast(`Parse iCal thất bại cho phòng ${roomId}`, 'error');
+        }
+    };
+
+    const handleClearBookingComIcalPreview = (roomId: string) => {
+        setImportIcalTextByRoom((prev) => ({ ...prev, [roomId]: '' }));
+        setImportPreviewByRoom((prev) => ({ ...prev, [roomId]: [] }));
+        setImportPreviewErrorByRoom((prev) => ({ ...prev, [roomId]: '' }));
+        setSelectedImportPreviewIdsByRoom((prev) => ({ ...prev, [roomId]: [] }));
+    };
+
+    const handleOpenBookingComPreviewItem = (item: BookingComImportPreviewItem) => {
+        if (item.action === 'ignore') {
+            addToast('Mục này không có booking local để xử lý', 'info');
+            return;
+        }
+
+        const room = rooms.find((candidate) => candidate.id === item.roomId);
+        const noteParts = [item.summary, item.description, `iCal UID: ${item.uid}`].filter(Boolean);
+
+        if (item.existingBookingId) {
+            const existingBooking = bookings.find((booking) => booking.id === item.existingBookingId);
+            if (!existingBooking) {
+                addToast('Không tìm thấy booking local tương ứng trong danh sách đang tải', 'error');
+                return;
+            }
+
+            openBookingModal({
+                ...existingBooking,
+                status: item.status === 'CANCELLED' ? 'cancelled' : existingBooking.status,
+                note: noteParts.join('\n'),
+            });
+            return;
+        }
+
+        openBookingModal({
+            roomId: item.roomId,
+            checkIn: item.checkIn,
+            checkOut: item.checkOut,
+            guestName: item.guestName || '',
+            otaBookingNumber: item.otaBookingNumber || '',
+            source: 'Booking.com',
+            note: noteParts.join('\n'),
+            status: item.status === 'CANCELLED' ? 'cancelled' : 'booked',
+            price: room?.price || 0,
+        });
+    };
+
+    const toggleImportPreviewSelection = (roomId: string, uid: string) => {
+        setSelectedImportPreviewIdsByRoom((prev) => {
+            const current = new Set(prev[roomId] || []);
+            if (current.has(uid)) {
+                current.delete(uid);
+            } else {
+                current.add(uid);
+            }
+
+            return {
+                ...prev,
+                [roomId]: Array.from(current),
+            };
+        });
+    };
+
+    const selectAllApplicableImportPreviewItems = (roomId: string) => {
+        const applicableIds = (importPreviewByRoom[roomId] || [])
+            .filter((item) => item.action === 'create' || item.action === 'update')
+            .map((item) => item.uid);
+
+        setSelectedImportPreviewIdsByRoom((prev) => ({
+            ...prev,
+            [roomId]: applicableIds,
+        }));
+    };
+
+    const handleApplySelectedImportPreviewItems = async (roomId: string) => {
+        const previewItems = importPreviewByRoom[roomId] || [];
+        const selectedIds = new Set(selectedImportPreviewIdsByRoom[roomId] || []);
+        const applicableItems = previewItems.filter(
+            (item) => selectedIds.has(item.uid) && (item.action === 'create' || item.action === 'update')
+        );
+
+        if (applicableItems.length === 0) {
+            addToast(`Chưa chọn mục hợp lệ nào để apply cho phòng ${roomId}`, 'info');
+            return;
+        }
+
+        const room = rooms.find((candidate) => candidate.id === roomId);
+        const roomPrice = room?.price || 0;
+
+        setIsApplyingImportPreviewByRoom((prev) => ({ ...prev, [roomId]: true }));
+        try {
+            for (const item of applicableItems) {
+                const existingBooking = item.existingBookingId
+                    ? bookings.find((booking) => booking.id === item.existingBookingId)
+                    : undefined;
+
+                const payload = buildSaveBookingPayloadFromPreview(item, roomPrice, existingBooking);
+                await actions.saveBooking(payload);
+            }
+
+            const updatedRooms = buildBookingComIcalRoomConfigs(rooms, bookingComIcalForm);
+            const existingRoomConfig = updatedRooms[roomId];
+            updatedRooms[roomId] = {
+                ...existingRoomConfig,
+                lastImportedAt: Date.now(),
+                lastImportHash: createImportPreviewHash(applicableItems),
+            };
+
+            await actions.updateProperty({
+                externalSync: {
+                    ...(propertyInfo.externalSync || {}),
+                    bookingComIcal: {
+                        provider: 'Booking.com',
+                        rooms: updatedRooms,
+                        updatedAt: Date.now(),
+                    },
+                },
+            });
+
+            const appliedIds = new Set(applicableItems.map((item) => item.uid));
+            setImportPreviewByRoom((prev) => ({
+                ...prev,
+                [roomId]: (prev[roomId] || []).filter((item) => !appliedIds.has(item.uid)),
+            }));
+            setSelectedImportPreviewIdsByRoom((prev) => ({
+                ...prev,
+                [roomId]: (prev[roomId] || []).filter((uid) => !appliedIds.has(uid)),
+            }));
+            addToast(`Đã apply ${applicableItems.length} mục iCal cho phòng ${roomId}`, 'success');
+        } catch (error) {
+            addToast(`Apply iCal thất bại cho phòng ${roomId}: ${String(error)}`, 'error');
+        } finally {
+            setIsApplyingImportPreviewByRoom((prev) => ({ ...prev, [roomId]: false }));
+        }
     };
 
     const handleSaveBookingComIcalConfig = async () => {
@@ -457,6 +622,16 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                             <div className="space-y-3 max-h-[28rem] overflow-y-auto custom-scrollbar pr-1">
                                 {rooms.map((room) => {
                                     const roomConfig = bookingComIcalForm[room.id] || bookingComIcalRooms[room.id];
+                                    const previewItems = importPreviewByRoom[room.id] || [];
+                                    const selectedIds = new Set(selectedImportPreviewIdsByRoom[room.id] || []);
+                                    const selectableCount = previewItems.filter((item) => item.action === 'create' || item.action === 'update').length;
+                                    const previewCounts = previewItems.reduce(
+                                        (summary, item) => {
+                                            summary[item.action] += 1;
+                                            return summary;
+                                        },
+                                        { create: 0, update: 0, conflict: 0, ignore: 0 }
+                                    );
 
                                     return (
                                         <div key={room.id} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 space-y-3">
@@ -518,6 +693,146 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                                     <p className="text-[11px] text-gray-500 dark:text-gray-400">Feed công khai sẽ dùng cho pha tạm thời DB -&gt; Booking để block ngày.</p>
                                                 </div>
                                             </div>
+
+                                            <details className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-3">
+                                                <summary className="cursor-pointer list-none text-sm font-bold text-gray-800 dark:text-gray-200 flex items-center justify-between gap-3">
+                                                    <span>Preview import thủ công (.ics)</span>
+                                                    <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">Dán nội dung iCal rồi mở booking nháp để xác nhận</span>
+                                                </summary>
+
+                                                <div className="mt-3 space-y-3">
+                                                    <textarea
+                                                        value={importIcalTextByRoom[room.id] || ''}
+                                                        onChange={(e) => setImportIcalTextByRoom((prev) => ({ ...prev, [room.id]: e.target.value }))}
+                                                        placeholder="Dán toàn bộ nội dung file .ics từ Booking.com vào đây"
+                                                        rows={6}
+                                                        className="w-full p-3 border rounded-lg outline-none text-xs font-mono text-gray-900 bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                                                    />
+
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <button
+                                                            onClick={() => handlePreviewBookingComIcal(room.id, room.name)}
+                                                            className="px-3 py-2 bg-green-600 text-white rounded-lg font-bold text-xs hover:bg-green-700 transition-colors"
+                                                        >
+                                                            Parse preview
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleClearBookingComIcalPreview(room.id)}
+                                                            className="px-3 py-2 bg-gray-200 text-gray-800 rounded-lg font-bold text-xs hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 transition-colors"
+                                                        >
+                                                            Xóa nội dung
+                                                        </button>
+                                                        {previewItems.length > 0 && (
+                                                            <button
+                                                                onClick={() => selectAllApplicableImportPreviewItems(room.id)}
+                                                                className="px-3 py-2 bg-white text-gray-800 rounded-lg font-bold text-xs border border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700 dark:hover:bg-gray-700 transition-colors"
+                                                            >
+                                                                Chọn tất cả khả dụng
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    {importPreviewErrorByRoom[room.id] && (
+                                                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+                                                            {importPreviewErrorByRoom[room.id]}
+                                                        </div>
+                                                    )}
+
+                                                    {previewItems.length > 0 && (
+                                                        <div className="space-y-3">
+                                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px]">
+                                                                <div className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2">
+                                                                    <p className="text-gray-500 dark:text-gray-400">Tạo mới</p>
+                                                                    <p className="font-bold text-gray-900 dark:text-white">{previewCounts.create}</p>
+                                                                </div>
+                                                                <div className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2">
+                                                                    <p className="text-gray-500 dark:text-gray-400">Cập nhật</p>
+                                                                    <p className="font-bold text-blue-700 dark:text-blue-400">{previewCounts.update}</p>
+                                                                </div>
+                                                                <div className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2">
+                                                                    <p className="text-gray-500 dark:text-gray-400">Trùng lịch</p>
+                                                                    <p className="font-bold text-orange-700 dark:text-orange-400">{previewCounts.conflict}</p>
+                                                                </div>
+                                                                <div className="rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2">
+                                                                    <p className="text-gray-500 dark:text-gray-400">Bỏ qua</p>
+                                                                    <p className="font-bold text-gray-700 dark:text-gray-300">{previewCounts.ignore}</p>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center justify-between rounded-lg bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/60 px-3 py-2 text-[11px]">
+                                                                <p className="text-indigo-700 dark:text-indigo-300 font-medium">
+                                                                    Đã chọn {selectedIds.size}/{selectableCount} mục có thể apply trực tiếp.
+                                                                </p>
+                                                                <button
+                                                                    onClick={() => handleApplySelectedImportPreviewItems(room.id)}
+                                                                    disabled={selectedIds.size === 0 || Boolean(isApplyingImportPreviewByRoom[room.id])}
+                                                                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-bold text-xs hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                                >
+                                                                    {isApplyingImportPreviewByRoom[room.id] ? 'Đang apply...' : 'Apply selected'}
+                                                                </button>
+                                                            </div>
+
+                                                            <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                                                                {previewItems.map((item) => (
+                                                                    <div key={`${room.id}-${item.uid}`} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 space-y-2">
+                                                                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                                                                            <div className="min-w-0 flex-1">
+                                                                                <div className="flex items-start gap-2">
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={selectedIds.has(item.uid)}
+                                                                                        onChange={() => toggleImportPreviewSelection(room.id, item.uid)}
+                                                                                        disabled={item.action !== 'create' && item.action !== 'update'}
+                                                                                        className="mt-0.5 rounded accent-indigo-600"
+                                                                                    />
+                                                                                    <div className="min-w-0 flex-1">
+                                                                                <p className="font-bold text-sm text-gray-900 dark:text-white break-words">{item.guestName || item.summary || 'Booking.com guest'}</p>
+                                                                                <p className="text-xs text-gray-500 dark:text-gray-400">{`${item.checkIn} -> ${item.checkOut} · ${item.nights} đêm`}</p>
+                                                                                {item.otaBookingNumber && (
+                                                                                    <p className="text-[11px] text-gray-500 dark:text-gray-400">OTA: {item.otaBookingNumber}</p>
+                                                                                )}
+                                                                                {item.conflictBookingId && (
+                                                                                    <p className="text-[11px] font-medium text-orange-600 dark:text-orange-400">Trùng với booking local {item.conflictBookingId}</p>
+                                                                                )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-bold whitespace-nowrap ${
+                                                                                item.action === 'create'
+                                                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                                                                                    : item.action === 'update'
+                                                                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                                                                        : item.action === 'conflict'
+                                                                                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+                                                                                            : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                                                                            }`}>
+                                                                                {item.actionLabel}
+                                                                            </span>
+                                                                        </div>
+
+                                                                        {(item.summary || item.description) && (
+                                                                            <div className="text-[11px] text-gray-500 dark:text-gray-400 space-y-1">
+                                                                                {item.summary && <p>Summary: {item.summary}</p>}
+                                                                                {item.description && <p className="break-words">Description: {item.description}</p>}
+                                                                            </div>
+                                                                        )}
+
+                                                                        <div className="flex justify-end">
+                                                                            <button
+                                                                                onClick={() => handleOpenBookingComPreviewItem(item)}
+                                                                                disabled={item.action === 'ignore'}
+                                                                                className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-bold text-xs hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                                            >
+                                                                                {item.actionLabel}
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </details>
                                         </div>
                                     );
                                 })}
@@ -525,7 +840,7 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
 
                             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Export .ics tạo file block availability từ booking nội bộ — tải về rồi import thủ công vào Booking.com extranet để block ngày tương ứng trong pha chuyển tiếp. Import URL sẽ dùng cho bước parser kế tiếp.
+                                    Export .ics tạo file block availability từ booking nội bộ để import thủ công vào Booking.com extranet. Ở chiều ngược lại, phần preview import đang đọc nội dung .ics dán tay để tránh phụ thuộc CORS trên frontend.
                                 </p>
                                 <div className="flex flex-shrink-0 gap-2">
                                     <button
