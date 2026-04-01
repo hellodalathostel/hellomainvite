@@ -78,6 +78,10 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
         () => countConfiguredBookingComIcalRooms(bookingComIcalForm),
         [bookingComIcalForm]
     );
+    const autoExportBaseUrl = useMemo(() => {
+        const projectId = (import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined)?.trim() || 'hello-dalat-manager';
+        return `https://${projectId}.web.app/ical`;
+    }, []);
 
     useEffect(() => {
         const nextBank = findVietQrBank(propertyInfo.bankCode, propertyInfo.bankName);
@@ -157,6 +161,10 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                 },
             };
         });
+    };
+
+    const applyGeneratedExportUrl = (roomId: string) => {
+        updateBookingComIcalRoomField(roomId, 'exportUrl', `${autoExportBaseUrl}/${roomId}.ics`);
     };
 
     const handleExportRoomIcal = (roomId: string, roomName: string) => {
@@ -690,6 +698,15 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                                         placeholder="https://your-domain.example/ical/101.ics"
                                                         className="w-full p-2 border rounded-lg outline-none text-sm text-gray-900 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                                     />
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <button
+                                                            onClick={() => applyGeneratedExportUrl(room.id)}
+                                                            className="px-2.5 py-1.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-bold hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800"
+                                                        >
+                                                            Dùng URL tự động
+                                                        </button>
+                                                        <span className="text-[11px] text-gray-500 dark:text-gray-400 break-all">{`${autoExportBaseUrl}/${room.id}.ics`}</span>
+                                                    </div>
                                                     <p className="text-[11px] text-gray-500 dark:text-gray-400">Feed công khai sẽ dùng cho pha tạm thời DB -&gt; Booking để block ngày.</p>
                                                 </div>
                                             </div>

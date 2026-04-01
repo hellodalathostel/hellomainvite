@@ -7,6 +7,7 @@
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
+    "restore:missing-fields": "node scripts/generate-missing-fields-restore.mjs",
     "test": "node --test --experimental-strip-types tests",
     "test:report": "node --test --experimental-strip-types tests/report-analytics.test.ts",
     "prepush:check": "powershell -NoProfile -ExecutionPolicy Bypass -File .vscode/scripts/prepush-check.ps1",

@@ -1,6 +1,9 @@
 {
   "hosting": {
     "public": "dist",
+    "predeploy": [
+      "powershell -NoProfile -Command node scripts/generate-static-ical.mjs"
+    ],
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       { "source": "**", "destination": "/index.html" }
