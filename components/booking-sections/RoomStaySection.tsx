@@ -211,4 +211,4 @@ const RoomStaySection: React.FC<RoomStaySectionProps> = ({
   );
 };
 
-export default RoomStaySection;
+export default React.memo(RoomStaySection);

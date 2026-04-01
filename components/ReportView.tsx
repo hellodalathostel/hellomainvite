@@ -38,7 +38,9 @@ const ReportView = () => {
     };
   }, [reportRange, reportMonth, today]);
 
-  const inRange = (date: string) => date >= dateRange.start && date <= dateRange.end;
+  const rangeStart = dateRange.start;
+  const rangeEndInclusive = dateRange.end;
+  const rangeEndExclusive = useMemo(() => addDays(rangeEndInclusive, 1), [rangeEndInclusive]);
 
   const rangeLabel = useMemo(() => {
     if (reportRange === 'today') return 'Hôm nay';
@@ -47,8 +49,35 @@ const ReportView = () => {
   }, [reportRange, dateRange, reportMonth]);
 
   const reportBookings = useMemo(() => {
-    return bookings.filter(b => b.status === 'checked-out' && inRange(b.checkOut));
-  }, [bookings, dateRange]);
+    return bookings.filter((b) => b.status === 'checked-out' && b.checkOut >= rangeStart && b.checkOut <= rangeEndInclusive);
+  }, [bookings, rangeStart, rangeEndInclusive]);
+
+  const relevantTransactions = useMemo(
+    () => expenses.filter((e) => e.date >= rangeStart && e.date <= rangeEndInclusive),
+    [expenses, rangeStart, rangeEndInclusive]
+  );
+
+  const checkInRangeBookings = useMemo(
+    () => bookings.filter((b) => b.status !== 'cancelled' && b.checkIn >= rangeStart && b.checkIn <= rangeEndInclusive),
+    [bookings, rangeStart, rangeEndInclusive]
+  );
+
+  const checkOutRangeBookings = useMemo(
+    () => bookings.filter((b) => b.status !== 'cancelled' && b.checkOut >= rangeStart && b.checkOut <= rangeEndInclusive),
+    [bookings, rangeStart, rangeEndInclusive]
+  );
+
+  const activeBookings = useMemo(
+    () =>
+      bookings.filter(
+        (b) =>
+          b.status !== 'cancelled' &&
+          !virtualRoomIds.has(b.roomId) &&
+          b.checkIn < rangeEndExclusive &&
+          b.checkOut > rangeStart
+      ),
+    [bookings, virtualRoomIds, rangeEndExclusive, rangeStart]
+  );
 
   const {
     dailyRevenue,
@@ -90,8 +119,6 @@ const ReportView = () => {
     let operatingExpense = 0;
     let otherIncome = 0;
 
-    const relevantTransactions = expenses.filter(e => inRange(e.date));
-
     relevantTransactions.forEach(e => {
         if (e.type === 'income') {
             otherIncome += Number(e.amount);
@@ -108,20 +135,10 @@ const ReportView = () => {
     const totalRevenueNet = bookingRevenueTotals.netRevenue + otherIncome;
     const totalExpense = bankFee + operatingExpense;
 
-    const rangeStart = dateRange.start;
-    const rangeEndInclusive = dateRange.end;
-    const rangeEndExclusive = addDays(rangeEndInclusive, 1);
     const totalDaysInRange = getDaysDiff(rangeStart, rangeEndExclusive);
     const totalAvailableNights = realRooms.length * totalDaysInRange;
     
     let totalNightsSold = 0;
-
-    const activeBookings = bookings.filter(b => 
-        b.status !== 'cancelled' &&
-        !virtualRoomIds.has(b.roomId) &&
-        b.checkIn < rangeEndExclusive && 
-        b.checkOut > rangeStart
-    );
 
     activeBookings.forEach(b => {
       const start = b.checkIn < rangeStart ? rangeStart : b.checkIn;
@@ -152,15 +169,15 @@ const ReportView = () => {
       totalNightsSold,
       totalAvailableNights
     };
-  }, [bookings, expenses, rooms, dateRange, dailyRevenue]);
+  }, [activeBookings, dailyRevenue, rangeEndExclusive, rangeStart, realRooms.length, relevantTransactions]);
 
   const dailyOps = useMemo(() => {
-    const todaysCheckIn = bookings.filter(b => b.status !== 'cancelled' && inRange(b.checkIn)).length;
-    const todaysCheckOut = bookings.filter(b => b.status !== 'cancelled' && inRange(b.checkOut)).length;
+    const todaysCheckIn = checkInRangeBookings.length;
+    const todaysCheckOut = checkOutRangeBookings.length;
 
     const activeRoomIds = new Set(
       bookings
-        .filter(b => b.status !== 'cancelled' && b.checkIn <= dateRange.start && b.checkOut > dateRange.start)
+        .filter(b => b.status !== 'cancelled' && b.checkIn <= rangeStart && b.checkOut > rangeStart)
         .map(b => b.roomId)
     );
 
@@ -168,7 +185,7 @@ const ReportView = () => {
     const emptyRooms = Math.max(0, realRooms.length - activeRoomIds.size);
 
     const dueCollection = bookings
-      .filter(b => b.status !== 'cancelled' && inRange(b.checkOut))
+      .filter(b => b.status !== 'cancelled' && b.checkOut >= rangeStart && b.checkOut <= rangeEndInclusive)
       .reduce((sum, b) => {
         const grandTotal = getBookingGrandTotal(b);
         const debt = Math.max(0, grandTotal - normalizeMoneyAmount(b.paid));
@@ -182,7 +199,7 @@ const ReportView = () => {
       dirtyRooms,
       dueCollection,
     };
-  }, [bookings, rooms, roomStates, dateRange]);
+  }, [bookings, checkInRangeBookings.length, checkOutRangeBookings.length, rangeEndInclusive, rangeStart, realRooms.length, roomStates]);
 
   const handleExport = () => {
       window.print();

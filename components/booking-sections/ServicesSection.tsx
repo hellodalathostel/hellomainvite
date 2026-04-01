@@ -112,4 +112,4 @@ const ServicesSection: React.FC<ServicesSectionProps> = ({
   );
 };
 
-export default ServicesSection;
+export default React.memo(ServicesSection);

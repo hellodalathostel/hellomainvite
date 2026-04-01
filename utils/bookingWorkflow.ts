@@ -1,5 +1,10 @@
-import { getDaysDiff } from './utils';
-import { BookingFormData, SaveBookingPayload } from '../types/bookingForm';
+import { getDaysDiff } from './utils.ts';
+import type { BookingFormData, SaveBookingPayload } from '../types/bookingForm.ts';
+
+const hasValidDateRange = (checkIn?: string, checkOut?: string) => {
+  return Boolean(checkIn && checkOut && checkIn < checkOut);
+};
+
 export const resolveRoomsToCheck = (form: BookingFormData, isGroupMode: boolean): string[] => {
   return isGroupMode && !form.id ? form.selectedRooms : [form.roomId];
 };
@@ -21,6 +26,21 @@ export const validateBookingForm = (
   const roomsToCheck = resolveRoomsToCheck(form, isGroupMode);
   if (roomsToCheck.length === 0 || roomsToCheck.some((roomId) => !roomId)) {
     return 'Vui lòng chọn ít nhất 1 phòng.';
+  }
+
+  if (new Set(roomsToCheck).size !== roomsToCheck.length) {
+    return 'Danh sách phòng đang bị trùng. Vui lòng kiểm tra lại.';
+  }
+
+  if (isGroupMode && !form.id) {
+    for (const roomId of roomsToCheck) {
+      const roomDates = form.roomDates?.[roomId];
+      if (!hasValidDateRange(roomDates?.checkIn, roomDates?.checkOut)) {
+        return `Ngày lưu trú không hợp lệ cho phòng ${roomId}.`;
+      }
+    }
+  } else if (!hasValidDateRange(form.checkIn, form.checkOut)) {
+    return 'Ngày không hợp lệ (check-in phải nhỏ hơn check-out).';
   }
 
   return null;

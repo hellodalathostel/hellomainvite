@@ -136,4 +136,4 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
   );
 };
 
-export default PaymentSection;
+export default React.memo(PaymentSection);

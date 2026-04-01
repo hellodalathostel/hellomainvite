@@ -30,6 +30,16 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
   const [suggestedGuest, setSuggestedGuest] = useState<SuggestedGuest | null>(null);
   const { logAction } = useAudit(user);
 
+  const getRequestedRange = (
+    checkIn: string,
+    checkOut: string,
+    hasEarlyCheckIn?: boolean,
+    hasLateCheckOut?: boolean
+  ) => ({
+    start: hasEarlyCheckIn ? addDays(checkIn, -1) : checkIn,
+    end: hasLateCheckOut ? addDays(checkOut, 1) : checkOut,
+  });
+
   // Check if a room is free for a date range by scanning existing bookings.
   // OPTIMIZED: Use in-memory state first; fallback queries by roomId using DB index.
   const assertRoomAvailable = async (roomId: string, checkIn: string, checkOut: string, ignoreBookingId?: string) => {
@@ -42,37 +52,21 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
       isDeleted?: boolean;
     };
 
-    let checkList: CollisionBooking[];
-
-    if (bookings.length > 0) {
-      // Fast path: filter in-memory bookings by roomId
-      checkList = bookings
-        .filter(b => b.roomId === roomId)
-        .map(b => ({
-          id: b.id,
-          roomId: b.roomId,
-          status: b.status,
-          checkIn: b.checkIn,
-          checkOut: b.checkOut,
-          isDeleted: b.isDeleted,
-        }));
-    } else {
-      // Fallback: query DB using roomId index to avoid loading all bookings
-      const roomQuery = query(ref(db, 'bookings'), orderByChild('roomId'), startAt(roomId), endAt(roomId));
-      const snapshot = await get(roomQuery);
-      const val = snapshot.val() || {};
-      checkList = Object.entries(val).map(([id, b]) => {
-        const entity = b as BookingEntity;
-        return {
-          id,
-          roomId: entity.roomId,
-          status: entity.status,
-          checkIn: entity.checkIn,
-          checkOut: entity.checkOut,
-          isDeleted: entity.isDeleted,
-        };
-      });
-    }
+    // Always validate against DB because in-memory window can be partial.
+    const roomQuery = query(ref(db, 'bookings'), orderByChild('roomId'), startAt(roomId), endAt(roomId));
+    const snapshot = await get(roomQuery);
+    const val = snapshot.val() || {};
+    const checkList: CollisionBooking[] = Object.entries(val).map(([id, b]) => {
+      const entity = b as BookingEntity;
+      return {
+        id,
+        roomId: entity.roomId,
+        status: entity.status,
+        checkIn: entity.checkIn,
+        checkOut: entity.checkOut,
+        isDeleted: entity.isDeleted,
+      };
+    });
 
     for (const b of checkList) {
       if (ignoreBookingId && b.id === ignoreBookingId) continue;
@@ -91,8 +85,14 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
       throw new Error("Ngày không hợp lệ (check-in phải nhỏ hơn check-out).");
     }
 
-    // 1) Check room availability
-    await assertRoomAvailable(roomId, checkIn, checkOut);
+    // 1) Check room availability using occupied request range
+    const { start, end } = getRequestedRange(
+      checkIn,
+      checkOut,
+      payload.hasEarlyCheckIn,
+      payload.hasLateCheckOut
+    );
+    await assertRoomAvailable(roomId, start, end);
 
     // 2) Create new booking id
     const newBookingRef = push(ref(db, "bookings"));
@@ -149,7 +149,13 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
     }
 
     // Check new room availability
-    await assertRoomAvailable(newRoom.roomId, newRoom.checkIn, newRoom.checkOut);
+    const { start, end } = getRequestedRange(
+      newRoom.checkIn,
+      newRoom.checkOut,
+      newRoom.hasEarlyCheckIn,
+      newRoom.hasLateCheckOut
+    );
+    await assertRoomAvailable(newRoom.roomId, start, end);
 
     // Create groupId
     const groupRef = push(ref(db, "groups"));
@@ -453,7 +459,50 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
         }
     }
     
-    // 1. Group Data Preparation
+    // 1) Write-time room validation to prevent window-based false negatives.
+    if (isNewGroup) {
+      const selectedRooms = Array.from(new Set((data.selectedRooms || []).filter(Boolean)));
+      if (selectedRooms.length === 0) {
+        throw new Error('Booking đoàn thiếu danh sách phòng hợp lệ.');
+      }
+
+      for (const rid of selectedRooms) {
+        const rDates = data.roomDates?.[rid] || { checkIn: data.checkIn, checkOut: data.checkOut };
+        if (!rDates.checkIn || !rDates.checkOut || rDates.checkIn >= rDates.checkOut) {
+          throw new Error(`Ngày không hợp lệ cho phòng ${rid}.`);
+        }
+        const { start, end } = getRequestedRange(
+          rDates.checkIn,
+          rDates.checkOut,
+          data.hasEarlyCheckIn,
+          data.hasLateCheckOut
+        );
+        await assertRoomAvailable(rid, start, end);
+      }
+    } else {
+      if (!data.checkIn || !data.checkOut || data.checkIn >= data.checkOut) {
+        throw new Error('Ngày không hợp lệ (check-in phải nhỏ hơn check-out).');
+      }
+
+      const { start, end } = getRequestedRange(
+        data.checkIn,
+        data.checkOut,
+        data.hasEarlyCheckIn,
+        data.hasLateCheckOut
+      );
+      await assertRoomAvailable(data.roomId, start, end, data.id || undefined);
+    }
+
+    // 2. Group Data Preparation
+    let shouldSyncGroupFields = true;
+    if (groupId && data.id && !isNewGroup && !isMigration) {
+      const roomIdsSnap = await get(child(ref(db), `groups/${groupId}/roomIds`));
+      const roomIds = (roomIdsSnap.val() || {}) as Record<string, string>;
+      const activeRoomCount = Object.values(roomIds).filter(Boolean).length;
+      const isMultiRoomGroup = activeRoomCount > 1;
+      shouldSyncGroupFields = !isMultiRoomGroup || data.syncToGroup === true;
+    }
+
     if (groupId) {
         const customer = {
             name: data.guestName || '',
@@ -484,24 +533,29 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
                     updatedAt: timestamp
                 };
             } else {
-                // Existing Group: Partial updates to avoid overwriting other potential fields
+              // Existing Group: only sync shared fields when explicitly requested.
+              if (shouldSyncGroupFields) {
                 updates[`groups/${groupId}/customer`] = customer;
                 updates[`groups/${groupId}/payment/paid`] = payment.paid;
                 updates[`groups/${groupId}/payment/depositMethod`] = payment.depositMethod;
                 updates[`groups/${groupId}/payment/transactionId`] = payment.transactionId;
+              }
                 updates[`groups/${groupId}/updatedAt`] = timestamp;
             }
         }
 
-    // 2. Booking Data & Linkage
+        // 3. Booking Data & Linkage
     if (isNewGroup) {
         // Case A: New Group
         const roomIdsMap: Record<string, string> = {};
+          const selectedRooms = Array.from(new Set((data.selectedRooms || []).filter(Boolean)));
+          const primaryRoomId = selectedRooms[0];
         
-        data.selectedRooms.forEach((rid: string) => {
+          selectedRooms.forEach((rid: string) => {
              const bookingId = crypto.randomUUID();
              const rDates = data.roomDates?.[rid] || { checkIn: data.checkIn, checkOut: data.checkOut };
              const price = data.groupPrices?.[rid] || data.price;
+             const isPrimaryBooking = rid === primaryRoomId;
              
              const bookingEntity: BookingEntity = {
                  id: bookingId,
@@ -511,9 +565,11 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
                  checkOut: rDates.checkOut,
                  status: 'booked',
                  price: price,
-                 services: data.services || [],
-                 discounts: data.discounts || [],
-                 surcharge: 0,
+                 services: isPrimaryBooking ? (data.services || []) : [],
+                 discounts: isPrimaryBooking ? (data.discounts || []) : [],
+                 surcharge: isPrimaryBooking ? (data.surcharge || 0) : 0,
+                 hasEarlyCheckIn: data.hasEarlyCheckIn || false,
+                 hasLateCheckOut: data.hasLateCheckOut || false,
                  createdAt: timestamp,
                  updatedAt: timestamp,
                  isDeleted: false
@@ -621,12 +677,8 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
       const timestamp = Date.now();
       const currentCheckOut = booking.checkOut;
       const newCheckOut = addDays(currentCheckOut, 1);
-      
-      const collision = checkCollisionInternal(booking.roomId, currentCheckOut, newCheckOut, booking.id);
-      
-      if (collision) {
-          throw new Error(`Phòng ${booking.roomId} đã có khách vào ngày ${currentCheckOut}.`);
-      }
+
+        await assertRoomAvailable(booking.roomId, currentCheckOut, newCheckOut, booking.id);
 
       const updates: UpdateMap = {};
       updates[`bookings/${booking.id}/checkOut`] = newCheckOut;
@@ -667,8 +719,7 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
       
       if (originalBooking.checkIn >= today) throw new Error("Khách chưa đến, vui lòng đổi số phòng.");
       if (originalBooking.checkOut <= today) throw new Error("Khách đã/sắp trả phòng.");
-      const collision = checkCollisionInternal(newRoomId, today, originalBooking.checkOut);
-      if (collision) throw new Error(`Phòng ${newRoomId} đã có khách.`);
+      await assertRoomAvailable(newRoomId, today, originalBooking.checkOut);
 
       let groupId = originalBooking.groupId;
       if(!groupId) {

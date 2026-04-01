@@ -194,12 +194,7 @@ export const calculateBill = (
     
     calculatedTotal += calculatedSurcharge;
 
-    let paid = 0;
-    if (isGroup) {
-        paid = Math.max(...targetBookings.map(b => b.paid || 0));
-    } else {
-        paid = booking.paid || 0;
-    }
+    const paid = normalizeMoneyAmount(booking.paid);
 
     return { 
         items, 

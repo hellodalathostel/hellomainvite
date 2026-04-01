@@ -147,4 +147,4 @@ const GuestInfoSection: React.FC<GuestInfoSectionProps> = ({
   );
 };
 
-export default GuestInfoSection;
+export default React.memo(GuestInfoSection);
