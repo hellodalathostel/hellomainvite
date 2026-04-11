@@ -7,6 +7,9 @@ type LegacyBookingFields = {
   guestName?: string;
   phone?: string;
   otaBookingNumber?: string;
+  externalSource?: string;
+  externalIcalUid?: string;
+  externalImportedAt?: number;
   source?: string;
   note?: string;
   paid?: number;
@@ -54,6 +57,9 @@ export const mergeBookingData = (
     const guestName = getDisplayGuestName(group, legacy.guestName);
     const phone = normalizeText(group?.customer.phone) || normalizeText(legacy.phone);
     const otaBookingNumber = normalizeText(group?.customer.otaBookingNumber) || normalizeText(legacy.otaBookingNumber);
+    const externalSource = normalizeText(group?.customer.externalSource) || normalizeText(legacy.externalSource);
+    const externalIcalUid = normalizeText(group?.customer.externalIcalUid) || normalizeText(legacy.externalIcalUid);
+    const externalImportedAt = group?.customer.externalImportedAt ?? legacy.externalImportedAt;
     const source = normalizeText(group?.customer.source) || normalizeText(legacy.source) || 'Vãng lai';
     const note = normalizeText(group?.customer.note) || normalizeText(legacy.note);
     
@@ -65,6 +71,9 @@ export const mergeBookingData = (
         guestName,
         phone,
         otaBookingNumber,
+        externalSource,
+        externalIcalUid,
+        externalImportedAt,
         source,
         note,
         totalAmount,

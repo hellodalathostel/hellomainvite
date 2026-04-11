@@ -100,6 +100,7 @@ export const buildIcalBlocks = (
       if (b.roomId !== roomId) return false;
       if (b.isDeleted) return false;
       if (b.status === 'cancelled' || b.status === 'checked-out') return false;
+      if (!b.checkIn || !b.checkOut || b.checkIn >= b.checkOut) return false;
       if (b.checkOut <= today) return false;
       return true;
     })

@@ -26,6 +26,8 @@ export interface BookingComImportPreviewItem {
   otaBookingNumber?: string;
   existingBookingId?: string;
   conflictBookingId?: string;
+  matchType?: 'externalIcalUid' | 'otaBookingNumber';
+  decisionReason?: string;
   action: 'create' | 'update' | 'conflict' | 'ignore';
   actionLabel: string;
 }
@@ -100,6 +102,30 @@ const deriveGuestName = (summary: string, description: string): string | undefin
   return firstMeaningfulLine || undefined;
 };
 
+const extractImportedIcalUid = (note?: string): string | undefined => {
+  const match = note?.match(/(?:^|\n)iCal UID:\s*(.+?)\s*(?:\n|$)/i);
+  return match?.[1]?.trim() || undefined;
+};
+
+const isBookingComImportedBooking = (booking: Booking): boolean => {
+  return booking.source === 'Booking.com' || booking.externalSource === 'Booking.com' || Boolean(booking.externalIcalUid || extractImportedIcalUid(booking.note));
+};
+
+const getStoredExternalIcalUid = (booking: Booking): string => {
+  return (booking.externalIcalUid || extractImportedIcalUid(booking.note) || '').trim();
+};
+
+const isPmsAvailabilityReflection = (event: ParsedIcalEvent): boolean => {
+  const normalizedUid = event.uid.toLowerCase();
+  const normalizedSummary = event.summary.toLowerCase();
+
+  if (/^block-.*@(hello-dalat-manager|hellodalat\.hostel)$/.test(normalizedUid)) {
+    return true;
+  }
+
+  return normalizedSummary.includes('(blocked)') && normalizedSummary.includes('hello dalat hostel');
+};
+
 export const parseIcalEvents = (content: string): ParsedIcalEvent[] => {
   const lines = unfoldIcalLines(content);
   const events: ParsedIcalEvent[] = [];
@@ -163,35 +189,71 @@ export const buildBookingComImportPreview = (
   roomName: string,
   existingBookings: Booking[]
 ): BookingComImportPreviewItem[] => {
+  const relevantBookings = existingBookings.filter(
+    (booking) => booking.roomId === roomId && !booking.isDeleted
+  );
   const activeBookings = existingBookings.filter(
-    (booking) => !booking.isDeleted && booking.status !== 'cancelled' && booking.status !== 'checked-out'
+    (booking) => booking.roomId === roomId && !booking.isDeleted && booking.status !== 'cancelled' && booking.status !== 'checked-out'
   );
 
   return events.map((event) => {
-    const existingMatch = activeBookings.find((booking) => {
-      if (booking.roomId !== roomId) return false;
-      if (event.otaBookingNumber && booking.otaBookingNumber === event.otaBookingNumber) return true;
-      return booking.checkIn === event.checkIn && booking.checkOut === event.checkOut;
-    });
+    const existingUidMatch = relevantBookings.find((booking) => getStoredExternalIcalUid(booking) === event.uid);
+    const existingOtaMatch = existingUidMatch
+      ? undefined
+      : activeBookings.find((booking) => event.otaBookingNumber && booking.otaBookingNumber === event.otaBookingNumber);
+    const existingMatch = existingUidMatch || existingOtaMatch;
 
     const conflictMatch = activeBookings.find((booking) => {
-      if (booking.roomId !== roomId) return false;
       if (booking.id === existingMatch?.id) return false;
       return isOverlap(event.checkIn, event.checkOut, booking.checkIn, booking.checkOut);
     });
 
     let action: BookingComImportPreviewItem['action'] = 'create';
     let actionLabel = 'Tạo booking nháp';
+    let conflictBookingId: string | undefined = conflictMatch?.id;
+    let existingBookingId: string | undefined;
+    let matchType: BookingComImportPreviewItem['matchType'];
+    let decisionReason = 'Không tìm thấy booking local phù hợp.';
 
-    if (event.status === 'CANCELLED' && !existingMatch) {
+    if (existingUidMatch) {
+      matchType = 'externalIcalUid';
+    } else if (existingOtaMatch) {
+      matchType = 'otaBookingNumber';
+    }
+
+    if (isPmsAvailabilityReflection(event)) {
+      action = 'ignore';
+      actionLabel = 'Bỏ qua block availability của PMS';
+      decisionReason = 'Event này là block availability do PMS tự xuất ra, không phải reservation OTA cần import.';
+    } else if (event.status === 'CANCELLED' && !existingMatch) {
       action = 'ignore';
       actionLabel = 'Không có booking để cập nhật';
+      decisionReason = 'Reservation đã bị hủy nhưng không có match mạnh bằng UID hoặc OTA number để auto-hủy local booking.';
     } else if (existingMatch) {
-      action = 'update';
-      actionLabel = event.status === 'CANCELLED' ? 'Mở booking để hủy' : 'Mở booking hiện có';
+      if (!isBookingComImportedBooking(existingMatch)) {
+        action = 'conflict';
+        actionLabel = 'Xung đột với booking local nguồn khác';
+        conflictBookingId = existingMatch.id;
+        decisionReason = 'Event match vào booking local nhưng booking đó không phải nguồn Booking.com/imported OTA, nên không được auto-overwrite.';
+      } else if (event.status === 'CANCELLED' && existingMatch.status === 'checked-in') {
+        action = 'conflict';
+        actionLabel = 'Reservation hủy nhưng khách đã check-in';
+        conflictBookingId = existingMatch.id;
+        decisionReason = 'Reservation OTA báo hủy nhưng booking local đã check-in, cần staff xác nhận thủ công.';
+      } else {
+        action = 'update';
+        actionLabel = event.status === 'CANCELLED' ? 'Mở booking để hủy' : 'Mở booking hiện có';
+        existingBookingId = existingMatch.id;
+        decisionReason = matchType === 'externalIcalUid'
+          ? 'Match mạnh bằng external iCal UID đã lưu trước đó.'
+          : 'Match mạnh bằng OTA booking number.';
+      }
     } else if (conflictMatch) {
       action = 'conflict';
       actionLabel = 'Tạo nháp để xử lý trùng lịch';
+      decisionReason = 'Không có strong match, nhưng ngày lưu trú đang overlap với booking active trong cùng phòng.';
+    } else {
+      decisionReason = 'Không có strong match nào và phòng chưa bị overlap, có thể tạo mới reservation Booking.com.';
     }
 
     return {
@@ -206,8 +268,10 @@ export const buildBookingComImportPreview = (
       status: event.status,
       guestName: event.guestName,
       otaBookingNumber: event.otaBookingNumber,
-      existingBookingId: existingMatch?.id,
-      conflictBookingId: conflictMatch?.id,
+      existingBookingId,
+      conflictBookingId,
+      matchType,
+      decisionReason,
       action,
       actionLabel,
     };

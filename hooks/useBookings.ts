@@ -10,7 +10,7 @@ import { useAudit } from './useAudit';
 import type { SuggestedGuest, SaveBookingPayload } from '../types/bookingForm';
 
 type UpdateMap = Record<string, unknown>;
-type LegacyBookingFields = Partial<Pick<Booking, 'guestName' | 'phone' | 'otaBookingNumber' | 'source' | 'note' | 'paid'>>;
+type LegacyBookingFields = Partial<Pick<Booking, 'guestName' | 'phone' | 'otaBookingNumber' | 'externalSource' | 'externalIcalUid' | 'externalImportedAt' | 'source' | 'note' | 'paid'>>;
 
 export type AddRoomPayload = {
   roomId: string;
@@ -188,6 +188,9 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
         name: legacyGuestName,
         phone: legacyPhone,
         otaBookingNumber: oldBookingLegacy.otaBookingNumber || '',
+        externalSource: oldBookingLegacy.externalSource || '',
+        externalIcalUid: oldBookingLegacy.externalIcalUid || '',
+        externalImportedAt: oldBookingLegacy.externalImportedAt || undefined,
         source: legacySource,
         note: legacyNote
       },
@@ -514,7 +517,10 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
         const customer = {
             name: data.guestName || '',
             phone: data.phone || '',
-          otaBookingNumber: data.otaBookingNumber || '',
+            otaBookingNumber: data.otaBookingNumber || '',
+            externalSource: data.externalSource || '',
+            externalIcalUid: data.externalIcalUid || '',
+            externalImportedAt: data.externalImportedAt || null,
             source: data.source || 'Vãng lai',
             note: data.note || ''
         };
@@ -592,7 +598,10 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
             customer: {
                 name: data.guestName || '',
                 phone: data.phone || '',
-              otaBookingNumber: data.otaBookingNumber || '',
+                otaBookingNumber: data.otaBookingNumber || '',
+                externalSource: data.externalSource || '',
+                externalIcalUid: data.externalIcalUid || '',
+                externalImportedAt: data.externalImportedAt || null,
                 source: data.source || 'Vãng lai',
                 note: data.note || ''
             },
@@ -642,7 +651,10 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
             customer: {
                 name: data.guestName || '',
                 phone: data.phone || '',
-              otaBookingNumber: data.otaBookingNumber || '',
+                otaBookingNumber: data.otaBookingNumber || '',
+                externalSource: data.externalSource || '',
+                externalIcalUid: data.externalIcalUid || '',
+                externalImportedAt: data.externalImportedAt || null,
                 source: data.source || 'Vãng lai',
                 note: data.note || ''
             },

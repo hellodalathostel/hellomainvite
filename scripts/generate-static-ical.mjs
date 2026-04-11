@@ -7,6 +7,17 @@ const firebaseCmd = path.join(process.env.APPDATA || '', 'npm', 'firebase.cmd');
 const cwd = process.cwd();
 const outputDir = path.join(cwd, 'dist', 'ical');
 
+const defaultRoomsMap = {
+  '101': { name: '101 - Family' },
+  '201': { name: '201 - Deluxe Queen' },
+  '102': { name: '102 - Single' },
+  '202': { name: '202 - Single' },
+  '301': { name: '301 - Std Double' },
+  '302': { name: '302 - Std Double' },
+  '103': { name: '103 - Dlx Double' },
+  '203': { name: '203 - Dlx Double' },
+};
+
 const PRODID = '-//Hello Dalat Hostel//Static iCal Feed//VI';
 
 const escapeIcalText = (value) => {
@@ -92,6 +103,60 @@ const getJsonFromFirebase = (dbPath) => {
   return raw ? JSON.parse(raw) : {};
 };
 
+const parseArg = (name) => {
+  const arg = process.argv.find((value) => value.startsWith(`${name}=`));
+  return arg ? arg.slice(name.length + 1).trim() : '';
+};
+
+const readJsonFile = (filePath) => {
+  const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(cwd, filePath);
+  if (!fs.existsSync(absolutePath)) {
+    return null;
+  }
+
+  const raw = fs.readFileSync(absolutePath, 'utf8').trim();
+  return raw ? JSON.parse(raw) : {};
+};
+
+const resolveDataSources = () => {
+  const bookingsFileArg = parseArg('--bookings-file');
+  const roomsFileArg = parseArg('--rooms-file');
+
+  if (bookingsFileArg) {
+    const bookings = readJsonFile(bookingsFileArg);
+    if (!bookings) {
+      throw new Error(`bookings file not found: ${bookingsFileArg}`);
+    }
+
+    const roomsMap = roomsFileArg ? readJsonFile(roomsFileArg) || defaultRoomsMap : defaultRoomsMap;
+    return { bookings, roomsMap, source: 'snapshot' };
+  }
+
+  if (!fs.existsSync(firebaseCmd)) {
+    throw new Error(`firebase.cmd not found at ${firebaseCmd}`);
+  }
+
+  try {
+    return {
+      bookings: getJsonFromFirebase('/bookings') || {},
+      roomsMap: getJsonFromFirebase('/app_data/rooms') || {},
+      source: 'firebase',
+    };
+  } catch {
+    const fallbackBookings = readJsonFile('bookings-snapshot.json');
+    if (!fallbackBookings) {
+      throw new Error('Cannot read Firebase and no local bookings-snapshot.json found for fallback.');
+    }
+
+    console.warn('[iCal] Firebase access unavailable, using bookings-snapshot.json fallback.');
+    return {
+      bookings: fallbackBookings,
+      roomsMap: defaultRoomsMap,
+      source: 'snapshot-fallback',
+    };
+  }
+};
+
 const ensureDir = (dirPath) => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -99,12 +164,7 @@ const ensureDir = (dirPath) => {
 };
 
 const main = () => {
-  if (!fs.existsSync(firebaseCmd)) {
-    throw new Error(`firebase.cmd not found at ${firebaseCmd}`);
-  }
-
-  const bookings = getJsonFromFirebase('/bookings') || {};
-  const roomsMap = getJsonFromFirebase('/app_data/rooms') || {};
+  const { bookings, roomsMap, source } = resolveDataSources();
 
   const roomIds = Array.from(new Set([
     ...Object.keys(roomsMap),
@@ -150,7 +210,7 @@ const main = () => {
     'utf8'
   );
 
-  console.log(`[iCal] Generated ${roomIds.length} room feeds at dist/ical`);
+  console.log(`[iCal] Generated ${roomIds.length} room feeds at dist/ical (source: ${source})`);
 };
 
 main();

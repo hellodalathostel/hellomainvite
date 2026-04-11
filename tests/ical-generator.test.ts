@@ -177,3 +177,28 @@ test('special characters in property name are escaped', () => {
   assert.ok(!ical.includes('Hostel, "Da Lat"; Special\\Test'), 'Raw special chars found unescaped');
   assert.ok(ical.includes('Hostel\\, "Da Lat"\\; Special\\\\Test'), 'Escaped version not found');
 });
+
+test('excludes booking with invalid check-in/check-out range', () => {
+  const ical = generateRoomIcal(
+    [makeBooking({ checkIn: '2026-04-05', checkOut: '2026-04-05' })],
+    '101',
+    '101 - Family',
+    { fromDate: '2026-03-31' }
+  );
+
+  assert.ok(!ical.includes('BEGIN:VEVENT'));
+});
+
+test('line folding stays valid with multibyte UTF-8 content', () => {
+  const ical = generateRoomIcal(
+    [makeBooking({ id: 'utf8-1' })],
+    '101',
+    '101 - Gia dinh',
+    { propertyName: 'Nha nghi Da Lat - Chao mung ban den voi thanh pho ngan hoa 🌸🌸🌸', fromDate: '2026-03-31' }
+  );
+
+  const encoder = new TextEncoder();
+  for (const line of ical.split('\r\n')) {
+    assert.ok(encoder.encode(line).length <= 75);
+  }
+});

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ShoppingBag, Plus, Trash2, Tag, Settings, Bed, ChevronDown, ArrowRightCircle, Clock, Users, Moon, Sun, Download, CreditCard, Link2, FileDown } from 'lucide-react';
+import { onValue, ref } from 'firebase/database';
 import { RoomDefinition, ServiceDefinition, DiscountDefinition, Booking, BeforeInstallPromptEvent, BookingComIcalRoomConfig } from '../types/types';
 import { findVietQrBank, VIETQR_BANKS } from '../config/constants';
+import { db } from '../config/database';
 import { formatCurrency } from '../utils/utils';
 import { buildBookingComIcalRoomConfigs, countConfiguredBookingComIcalRooms } from '../utils/bookingComIcalConfig';
 import { buildSaveBookingPayloadFromPreview, createImportPreviewHash } from '../utils/bookingComImport';
@@ -11,6 +13,24 @@ import CurrencyInput from './CurrencyInput';
 import { useUI } from '../context/UIContext';
 import { useData } from '../context/DataContext';
 import ExpensesList from './ExpensesList';
+
+type BookingComConflictRecord = {
+    id: string;
+    roomId: string;
+    roomName?: string;
+    bookingId?: string | null;
+    actionLabel?: string;
+    reason?: string;
+    status?: string;
+    uid?: string;
+    otaBookingNumber?: string;
+    guestName?: string;
+    summary?: string;
+    description?: string;
+    checkIn?: string;
+    checkOut?: string;
+    createdAt?: number;
+};
 
 const ToggleSettingsMobile: React.FC = () => {
     const { showSettingsOnMobile, setShowSettingsOnMobile } = useUI();
@@ -62,6 +82,7 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     const [importPreviewErrorByRoom, setImportPreviewErrorByRoom] = useState<Record<string, string>>({});
     const [selectedImportPreviewIdsByRoom, setSelectedImportPreviewIdsByRoom] = useState<Record<string, string[]>>({});
     const [isApplyingImportPreviewByRoom, setIsApplyingImportPreviewByRoom] = useState<Record<string, boolean>>({});
+    const [bookingComConflictsByRoom, setBookingComConflictsByRoom] = useState<Record<string, BookingComConflictRecord[]>>({});
     const resolvedBank = findVietQrBank(propertyInfo.bankCode, propertyInfo.bankName);
     const [bankForm, setBankForm] = useState({
         bankCode: resolvedBank?.code || propertyInfo.bankCode || '',
@@ -96,6 +117,37 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     useEffect(() => {
         setBookingComIcalForm(bookingComIcalRooms);
     }, [bookingComIcalRooms]);
+
+    useEffect(() => {
+        const unsubscribe = onValue(ref(db, 'app_data/external_sync_conflicts'), (snapshot) => {
+            const raw = snapshot.val() as Record<string, Record<string, BookingComConflictRecord>> | null;
+            if (!raw || typeof raw !== 'object') {
+                setBookingComConflictsByRoom({});
+                return;
+            }
+
+            const next: Record<string, BookingComConflictRecord[]> = {};
+            Object.entries(raw).forEach(([roomId, roomConflicts]) => {
+                if (!roomConflicts || typeof roomConflicts !== 'object') {
+                    next[roomId] = [];
+                    return;
+                }
+
+                next[roomId] = Object.values(roomConflicts)
+                    .filter((item): item is BookingComConflictRecord => Boolean(item && typeof item === 'object'))
+                    .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0));
+            });
+
+            setBookingComConflictsByRoom(next);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    const formatSyncTimestamp = (value?: number) => {
+        if (!value) return 'Chưa có';
+        return new Date(value).toLocaleString('vi-VN');
+    };
 
     const handleAddRoom = () => {
         if (!newRoom.id || (!newRoom.price && !newRoom.isVirtual)) return;
@@ -631,6 +683,7 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                 {rooms.map((room) => {
                                     const roomConfig = bookingComIcalForm[room.id] || bookingComIcalRooms[room.id];
                                     const previewItems = importPreviewByRoom[room.id] || [];
+                                    const roomConflicts = bookingComConflictsByRoom[room.id] || [];
                                     const selectedIds = new Set(selectedImportPreviewIdsByRoom[room.id] || []);
                                     const selectableCount = previewItems.filter((item) => item.action === 'create' || item.action === 'update').length;
                                     const previewCounts = previewItems.reduce(
@@ -676,6 +729,25 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                                     >
                                                         <FileDown size={14} /> Export .ics
                                                     </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2 text-[11px]">
+                                                <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-2">
+                                                    <p className="text-gray-500 dark:text-gray-400">Lần import thành công</p>
+                                                    <p className="font-semibold text-gray-900 dark:text-white">{formatSyncTimestamp(roomConfig?.lastImportedAt)}</p>
+                                                </div>
+                                                <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-2">
+                                                    <p className="text-gray-500 dark:text-gray-400">Lần thử import gần nhất</p>
+                                                    <p className="font-semibold text-gray-900 dark:text-white">{formatSyncTimestamp(roomConfig?.lastImportAttemptAt)}</p>
+                                                </div>
+                                                <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-2">
+                                                    <p className="text-gray-500 dark:text-gray-400">Conflict đang chờ xử lý</p>
+                                                    <p className="font-semibold text-orange-700 dark:text-orange-400">{roomConflicts.length}</p>
+                                                </div>
+                                                <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-2">
+                                                    <p className="text-gray-500 dark:text-gray-400">Lỗi import gần nhất</p>
+                                                    <p className="font-semibold text-red-700 dark:text-red-400 line-clamp-2">{roomConfig?.lastImportError || 'Không có'}</p>
                                                 </div>
                                             </div>
 
@@ -850,6 +922,43 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                                     )}
                                                 </div>
                                             </details>
+
+                                            {roomConflicts.length > 0 && (
+                                                <details className="rounded-lg border border-orange-200 dark:border-orange-900/50 bg-orange-50/60 dark:bg-orange-950/20 p-3">
+                                                    <summary className="cursor-pointer list-none text-sm font-bold text-orange-800 dark:text-orange-300 flex items-center justify-between gap-3">
+                                                        <span>Conflict gần đây ({roomConflicts.length})</span>
+                                                        <span className="text-[11px] font-medium text-orange-700/80 dark:text-orange-300/80">Xử lý thủ công để tránh ghi đè sai booking</span>
+                                                    </summary>
+
+                                                    <div className="mt-3 space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                                                        {roomConflicts.slice(0, 8).map((conflict) => (
+                                                            <div
+                                                                key={`${room.id}-${conflict.id}`}
+                                                                className="rounded-lg border border-orange-200 dark:border-orange-900/60 bg-white dark:bg-gray-900 px-3 py-2 text-xs"
+                                                            >
+                                                                <p className="font-semibold text-gray-900 dark:text-white">
+                                                                    {conflict.guestName || conflict.summary || 'Booking.com event'}
+                                                                </p>
+                                                                <p className="text-gray-500 dark:text-gray-400 mt-0.5">
+                                                                    {(conflict.checkIn && conflict.checkOut) ? `${conflict.checkIn} -> ${conflict.checkOut}` : 'Không có khoảng ngày'}
+                                                                </p>
+                                                                {conflict.bookingId && (
+                                                                    <p className="text-orange-700 dark:text-orange-400 mt-0.5">Booking local: {conflict.bookingId}</p>
+                                                                )}
+                                                                {conflict.otaBookingNumber && (
+                                                                    <p className="text-gray-600 dark:text-gray-300 mt-0.5">OTA: {conflict.otaBookingNumber}</p>
+                                                                )}
+                                                                {conflict.reason && (
+                                                                    <p className="text-red-700 dark:text-red-400 mt-1">{conflict.reason}</p>
+                                                                )}
+                                                                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                                                    Tạo lúc: {formatSyncTimestamp(conflict.createdAt)}
+                                                                </p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </details>
+                                            )}
                                         </div>
                                     );
                                 })}

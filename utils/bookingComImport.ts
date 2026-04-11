@@ -15,7 +15,12 @@ export const buildImportedBookingNote = (item: BookingComImportPreviewItem) => {
 };
 
 export const createImportPreviewHash = (items: BookingComImportPreviewItem[]) => {
-  const raw = items
+  const raw = [...items]
+    .sort((left, right) => {
+      const leftKey = `${left.uid}|${left.checkIn}|${left.checkOut}|${left.status}|${left.otaBookingNumber || ''}`;
+      const rightKey = `${right.uid}|${right.checkIn}|${right.checkOut}|${right.status}|${right.otaBookingNumber || ''}`;
+      return leftKey.localeCompare(rightKey);
+    })
     .map((item) => `${item.uid}|${item.checkIn}|${item.checkOut}|${item.status}|${item.otaBookingNumber || ''}`)
     .join('||');
 
@@ -33,6 +38,7 @@ export const buildSaveBookingPayloadFromPreview = (
   existingBooking?: Booking
 ): SaveBookingPayload => {
   const note = buildImportedBookingNote(item);
+  const importedAt = Date.now();
 
   if (existingBooking) {
     return {
@@ -43,6 +49,9 @@ export const buildSaveBookingPayloadFromPreview = (
       guestName: item.guestName || existingBooking.guestName || '',
       phone: existingBooking.phone || '',
       otaBookingNumber: item.otaBookingNumber || existingBooking.otaBookingNumber || '',
+      externalSource: 'Booking.com',
+      externalIcalUid: item.uid,
+      externalImportedAt: importedAt,
       source: 'Booking.com',
       note,
       checkIn: item.checkIn,
@@ -74,6 +83,9 @@ export const buildSaveBookingPayloadFromPreview = (
     guestName: item.guestName || '',
     phone: '',
     otaBookingNumber: item.otaBookingNumber || '',
+    externalSource: 'Booking.com',
+    externalIcalUid: item.uid,
+    externalImportedAt: importedAt,
     source: 'Booking.com',
     note,
     checkIn: item.checkIn,

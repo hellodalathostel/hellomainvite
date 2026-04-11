@@ -66,6 +66,9 @@ test('buildSaveBookingPayloadFromPreview creates payload for new booking', () =>
   assert.equal(payload.roomId, '101');
   assert.equal(payload.source, 'Booking.com');
   assert.equal(payload.otaBookingNumber, '12345678');
+  assert.equal(payload.externalSource, 'Booking.com');
+  assert.equal(payload.externalIcalUid, 'uid-1');
+  assert.equal(typeof payload.externalImportedAt, 'number');
   assert.equal(payload.price, 450000);
   assert.equal(payload.status, 'booked');
 });
@@ -82,10 +85,22 @@ test('buildSaveBookingPayloadFromPreview preserves existing booking metadata on 
   assert.equal(payload.phone, '0900000000');
   assert.equal(payload.status, 'cancelled');
   assert.equal(payload.otaBookingNumber, '99999999');
+  assert.equal(payload.externalSource, 'Booking.com');
+  assert.equal(payload.externalIcalUid, 'uid-1');
 });
 
 test('createImportPreviewHash is deterministic for same items', () => {
   const items = [makePreviewItem(), makePreviewItem({ uid: 'uid-2', otaBookingNumber: '22222222' })];
 
   assert.equal(createImportPreviewHash(items), createImportPreviewHash(items));
+});
+
+test('createImportPreviewHash stays stable across item ordering', () => {
+  const itemA = makePreviewItem({ uid: 'uid-a', otaBookingNumber: '11111111' });
+  const itemB = makePreviewItem({ uid: 'uid-b', otaBookingNumber: '22222222' });
+
+  const hashForward = createImportPreviewHash([itemA, itemB]);
+  const hashReverse = createImportPreviewHash([itemB, itemA]);
+
+  assert.equal(hashForward, hashReverse);
 });

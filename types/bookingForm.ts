@@ -14,6 +14,9 @@ export interface BookingFormData {
   guestName: string;
   phone: string;
   otaBookingNumber: string;
+  externalSource?: string;
+  externalIcalUid?: string;
+  externalImportedAt?: number;
   source: string;
   note: string;
   isSticky?: boolean;

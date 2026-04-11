@@ -76,6 +76,9 @@ export interface GroupEntity {
         name: string;
         phone: string;
     otaBookingNumber?: string;
+    externalSource?: string;
+    externalIcalUid?: string;
+    externalImportedAt?: number;
         source: string;
         note?: string;
     };
@@ -115,6 +118,9 @@ export interface Booking {
   guestName: string;
   phone: string;
   otaBookingNumber?: string;
+  externalSource?: string;
+  externalIcalUid?: string;
+  externalImportedAt?: number;
   source: string;
   note?: string;
   isSticky?: boolean;
@@ -200,6 +206,8 @@ export interface BookingComIcalRoomConfig {
   lastImportedAt?: number;
   lastExportedAt?: number;
   lastImportHash?: string;
+  lastImportError?: string;
+  lastImportAttemptAt?: number;
 }
 
 export interface BookingComIcalConfig {
