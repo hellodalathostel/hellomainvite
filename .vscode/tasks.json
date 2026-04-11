@@ -269,6 +269,19 @@
 				"$fb=Join-Path $env:APPDATA 'npm\\firebase.cmd'; & $fb database:update /groups groups-repair.json --project hello-dalat-manager"
 			],
 			"isBackground": false
+		},
+		{
+			"label": "Predeploy + Rollback Check",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				".vscode/scripts/predeploy-rollback-check.ps1"
+			],
+			"isBackground": false
 		}
 	]
 }

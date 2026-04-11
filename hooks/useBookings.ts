@@ -446,9 +446,16 @@ export const useBookings = (user: FirebaseUser | null, startDate?: string, endDa
             if (existingBooking) {
                 const changes = [];
                 if (existingBooking.price !== data.price) changes.push(`Giá: ${formatCurrency(existingBooking.price)} -> ${formatCurrency(data.price)}`);
+                if ((existingBooking.paid || 0) !== (data.paid || 0)) changes.push(`Đã trả: ${formatCurrency(existingBooking.paid || 0)} -> ${formatCurrency(data.paid || 0)}`);
                 if (existingBooking.checkIn !== data.checkIn) changes.push(`CheckIn: ${existingBooking.checkIn} -> ${data.checkIn}`);
                 if (existingBooking.checkOut !== data.checkOut) changes.push(`CheckOut: ${existingBooking.checkOut} -> ${data.checkOut}`);
                 if (existingBooking.status !== data.status) changes.push(`Status: ${existingBooking.status} -> ${data.status}`);
+                if ((existingBooking.depositMethod || existingBooking.paymentMethod || 'cash') !== (data.depositMethod || data.paymentMethod || 'cash')) {
+                  changes.push(`Phương thức cọc: ${existingBooking.depositMethod || existingBooking.paymentMethod || 'cash'} -> ${data.depositMethod || data.paymentMethod || 'cash'}`);
+                }
+                if ((existingBooking.transactionId || '') !== (data.transactionId || '')) {
+                  changes.push(`Mã giao dịch: ${existingBooking.transactionId || '(trống)'} -> ${data.transactionId || '(trống)'}`);
+                }
                 
                 if (changes.length > 0) {
                     logAction('update_booking', `Sửa Booking ${data.roomId}: ${changes.join(' | ')}`, data.id);

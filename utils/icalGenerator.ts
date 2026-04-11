@@ -56,6 +56,10 @@ const foldLine = (line: string): string => {
 
 const PRODID = '-//Hello Dalat Hostel//Availability Block//VI';
 
+const toIcalUtcTimestamp = (date: Date = new Date()): string => {
+  return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+};
+
 export interface IcalBlockOptions {
   /** Property name shown in summary field. Defaults to "Hello Dalat Hostel". */
   propertyName?: string;
@@ -120,10 +124,7 @@ export const generateRoomIcal = (
 ): string => {
   const { propertyName = 'Hello Dalat Hostel' } = options;
   const blocks = buildIcalBlocks(bookings, roomId, options);
-  const now = new Date()
-    .toISOString()
-    .replace(/[-:]/g, '')
-    .replace(/\.\d{3}/, '');
+  const now = toIcalUtcTimestamp();
 
   const vevents = blocks
     .map((block) => {
@@ -135,7 +136,7 @@ export const generateRoomIcal = (
       const lines = [
         'BEGIN:VEVENT',
         foldLine(`UID:${uid}`),
-        `DTSTAMP:${now}Z`,
+        `DTSTAMP:${now}`,
         `DTSTART;VALUE=DATE:${dtStart}`,
         `DTEND;VALUE=DATE:${dtEnd}`,
         foldLine(`SUMMARY:${summary}`),
@@ -193,10 +194,7 @@ export const downloadAllRoomsIcal = (
   options: IcalBlockOptions = {}
 ): void => {
   const { propertyName = 'Hello Dalat Hostel' } = options;
-  const now = new Date()
-    .toISOString()
-    .replace(/[-:]/g, '')
-    .replace(/\.\d{3}/, '');
+  const now = toIcalUtcTimestamp();
 
   const allBlocks = rooms.flatMap(({ id: roomId, name: roomName }) => {
     const blocks = buildIcalBlocks(bookings, roomId, options);
@@ -209,7 +207,7 @@ export const downloadAllRoomsIcal = (
       return [
         'BEGIN:VEVENT',
         foldLine(`UID:${uid}`),
-        `DTSTAMP:${now}Z`,
+        `DTSTAMP:${now}`,
         `DTSTART;VALUE=DATE:${dtStart}`,
         `DTEND;VALUE=DATE:${dtEnd}`,
         foldLine(`SUMMARY:${summary}`),

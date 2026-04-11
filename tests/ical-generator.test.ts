@@ -115,6 +115,15 @@ test('DTSTART and DTEND use DATE format without dashes', () => {
   assert.ok(ical.includes('DTEND;VALUE=DATE:20260403'));
 });
 
+test('DTSTAMP has one UTC suffix Z (not ZZ)', () => {
+  const ical = generateRoomIcal([makeBooking()], '101', '101 - Family', { fromDate: '2026-03-31' });
+  const dtStampLine = ical.split('\r\n').find((line) => line.startsWith('DTSTAMP:'));
+
+  assert.ok(dtStampLine, 'DTSTAMP line is missing');
+  assert.match(dtStampLine || '', /^DTSTAMP:\d{8}T\d{6}Z$/);
+  assert.ok(!(dtStampLine || '').endsWith('ZZ'), 'DTSTAMP must not end with ZZ');
+});
+
 test('UID contains booking id and room id', () => {
   const ical = generateRoomIcal([makeBooking({ id: 'booking-xyz', roomId: '102' })], '102', '102 - Single', { fromDate: '2026-03-31' });
   assert.ok(ical.includes('UID:block-booking-xyz-102@hellodalat.hostel'));

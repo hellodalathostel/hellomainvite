@@ -45,8 +45,12 @@ const foldLine = (line) => {
   return parts.join('\r\n');
 };
 
+const toIcalUtcTimestamp = (date = new Date()) => {
+  return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+};
+
 const buildCalendar = ({ roomId, roomName, bookings }) => {
-  const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const dtStamp = toIcalUtcTimestamp();
 
   const events = bookings
     .map((booking) => {
@@ -55,7 +59,7 @@ const buildCalendar = ({ roomId, roomName, bookings }) => {
       return [
         'BEGIN:VEVENT',
         foldLine(`UID:${uid}`),
-        `DTSTAMP:${dtStamp}Z`,
+        `DTSTAMP:${dtStamp}`,
         `DTSTART;VALUE=DATE:${toIcalDate(booking.checkIn)}`,
         `DTEND;VALUE=DATE:${toIcalDate(booking.checkOut)}`,
         foldLine(`SUMMARY:${summary}`),

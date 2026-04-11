@@ -1,17 +1,28 @@
 
 import { useState, useEffect } from 'react';
+import type { User as FirebaseUser } from 'firebase/auth';
 import { ref, onValue, set, update, remove } from "firebase/database";
 import { db } from '../config/database';
 import { RoomState, ServiceDefinition, PropertyInfo, RoomDefinition, DiscountDefinition } from '../types/types';
 import { DEFAULT_SERVICES, PROPERTY_INFO as DEFAULT_PROPERTY_INFO, DEFAULT_ROOM_DATA, PRESET_DISCOUNTS, DEFAULT_ZALO_TEMPLATE } from '../config/constants';
+import { useAudit } from './useAudit';
 
-export const useMasterData = (user: { uid: string } | null, enabled = true) => {
+export const useMasterData = (user: FirebaseUser | null, enabled = true) => {
   const [roomStates, setRoomStates] = useState<RoomState>({});
   const [masterServices, setMasterServices] = useState<ServiceDefinition[]>(DEFAULT_SERVICES);
   const [masterDiscounts, setMasterDiscounts] = useState<DiscountDefinition[]>([]);
   const [rooms, setRooms] = useState<RoomDefinition[]>(DEFAULT_ROOM_DATA);
   const [zaloTemplate, setZaloTemplate] = useState<string>(DEFAULT_ZALO_TEMPLATE);
   const [propertyInfo, setPropertyInfo] = useState<PropertyInfo>(DEFAULT_PROPERTY_INFO);
+  const { logAction } = useAudit(user);
+
+  const logMasterDataAction = async (action: string, description: string, entityId?: string) => {
+    try {
+      await logAction(action, description, entityId);
+    } catch (error) {
+      console.error('Master data audit error', error);
+    }
+  };
 
   useEffect(() => {
     if (!user) {
@@ -54,7 +65,8 @@ export const useMasterData = (user: { uid: string } | null, enabled = true) => {
     const unsubDiscounts = onValue(ref(db, 'app_data/discounts'), (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setMasterDiscounts(Object.values(data));
+        const list: DiscountDefinition[] = Object.values(data);
+        setMasterDiscounts(list.filter((d: any) => !d.isDeleted));
       } else {
         const presetWithIds = PRESET_DISCOUNTS.map((d, i) => ({
             id: `preset_${i}`,
@@ -109,6 +121,7 @@ export const useMasterData = (user: { uid: string } | null, enabled = true) => {
   const updateProperty = async (updates: Partial<PropertyInfo>) => {
     setPropertyInfo(prev => ({ ...prev, ...updates }));
     await update(ref(db, 'app_data/property_info'), updates);
+    await logMasterDataAction('update_property_info', `Cập nhật thông tin cơ sở lưu trú: ${Object.keys(updates).join(', ')}`);
   };
 
   const updateZaloTemplate = async (newTemplate: string) => {
@@ -120,32 +133,38 @@ export const useMasterData = (user: { uid: string } | null, enabled = true) => {
     if (!name || !price) return;
     const id = Date.now().toString();
     await set(ref(db, `services/${id}`), { id, name, price, isDeleted: false });
+    await logMasterDataAction('add_service', `Thêm dịch vụ ${name} (${price})`, id);
   };
 
   const removeService = async (id: string) => {
     // Soft delete
     await update(ref(db, `services/${id}`), { isDeleted: true });
+    await logMasterDataAction('remove_service', `Ẩn dịch vụ ${id}`, id);
   };
 
   const addDiscount = async (description: string, amount: number) => {
     if (!description || !amount) return;
     const id = Date.now().toString();
     await set(ref(db, `app_data/discounts/${id}`), { id, description, amount });
+    await logMasterDataAction('add_discount', `Thêm ưu đãi ${description} (${amount})`, id);
   };
 
   const removeDiscount = async (id: string) => {
-    await remove(ref(db, `app_data/discounts/${id}`));
+    await update(ref(db, `app_data/discounts/${id}`), { isDeleted: true });
+    await logMasterDataAction('remove_discount', `Ẩn ưu đãi ${id}`, id);
   };
 
   // --- ROOM CRUD ---
   const saveRoom = async (room: RoomDefinition) => {
       if (!room.id) return;
       await set(ref(db, `app_data/rooms/${room.id}`), room);
+      await logMasterDataAction('save_room', `Lưu cấu hình phòng ${room.id} (${room.name || 'N/A'})`, room.id);
   };
 
   const deleteRoom = async (roomId: string) => {
       // Hard delete allowed for room config for now, or could implementing soft delete if strict
       await remove(ref(db, `app_data/rooms/${roomId}`));
+      await logMasterDataAction('delete_room', `Xóa cấu hình phòng ${roomId}`, roomId);
   };
 
   return {

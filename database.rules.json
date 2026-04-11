@@ -5,13 +5,14 @@
     "bookings": {
       ".indexOn": ["checkIn", "checkOut", "roomId", "createdAt", "phone", "otaBookingNumber", "groupId", "isDeleted"],
       "$bookingId": {
-        ".write": "auth != null && ((root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'owner@hellodalat.com' || auth.token.email === 'admin@hellodalat.com') || (root.child('users').child(auth.uid).child('role').val() === 'staff' && newData.exists() && (data.exists() || !newData.hasChild('paid')) && (!data.exists() || !newData.hasChild('paid') || newData.child('paid').val() === data.child('paid').val()) && newData.child('status').val() !== 'cancelled'))"
+        ".write": "auth != null && ((root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin') || (root.child('users').child(auth.uid).child('role').val() === 'staff' && newData.exists() && (data.exists() || !newData.hasChild('paid')) && (!data.exists() || !newData.hasChild('paid') || newData.child('paid').val() === data.child('paid').val()) && newData.child('status').val() !== 'cancelled'))"
       }
     },
 
     "groups": {
+      ".read": "auth != null",
       "$groupId": {
-        ".write": "auth != null && ((root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'owner@hellodalat.com' || auth.token.email === 'admin@hellodalat.com') || (root.child('users').child(auth.uid).child('role').val() === 'staff' && newData.exists() && (data.exists() || newData.child('payment/paid').val() === 0) && (!data.exists() || !newData.child('payment').hasChild('paid') || newData.child('payment/paid').val() === data.child('payment/paid').val()) && newData.child('status').val() !== 'cancelled'))"
+        ".write": "auth != null && ((root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin') || (root.child('users').child(auth.uid).child('role').val() === 'staff' && newData.exists() && (data.exists() || newData.child('payment/paid').val() === 0) && (!data.exists() || !newData.child('payment').hasChild('paid') || newData.child('payment/paid').val() === data.child('payment/paid').val()) && newData.child('status').val() !== 'cancelled'))"
       }
     },
 
@@ -38,13 +39,13 @@
     },
 
     "rooms": {
-      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'owner@hellodalat.com' || auth.token.email === 'admin@hellodalat.com')"
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
     },
     "services": {
-      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'owner@hellodalat.com' || auth.token.email === 'admin@hellodalat.com')"
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
     },
     "app_data": {
-      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.token.email === 'owner@hellodalat.com' || auth.token.email === 'admin@hellodalat.com')"
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
     }
   }
 }

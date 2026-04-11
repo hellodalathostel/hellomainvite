@@ -1,10 +1,14 @@
 import fs from 'node:fs';
 
-const args = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
+const flags = new Set(rawArgs.filter((arg) => arg.startsWith('--')));
+const args = rawArgs.filter((arg) => !arg.startsWith('--'));
+const isDryRun = flags.has('--dry-run');
+const forceOverwrite = flags.has('--force');
 
 if (args.length < 6) {
   console.error(
-    'Usage: node scripts/generate-missing-fields-restore.mjs <sourceBookings> <targetBookings> <sourceGroups> <targetGroups> <outBookingsPatch> <outGroupsPatch>'
+    'Usage: node scripts/generate-missing-fields-restore.mjs <sourceBookings> <targetBookings> <sourceGroups> <targetGroups> <outBookingsPatch> <outGroupsPatch> [--dry-run] [--force]'
   );
   process.exit(1);
 }
@@ -17,6 +21,18 @@ const [
   outBookingsPatchPath,
   outGroupsPatchPath,
 ] = args;
+
+const ensureReadableJson = (filePath, label) => {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`${label} not found: ${filePath}`);
+  }
+};
+
+const ensureWritableTarget = (filePath, label) => {
+  if (!forceOverwrite && fs.existsSync(filePath)) {
+    throw new Error(`${label} already exists: ${filePath}. Use --force to overwrite.`);
+  }
+};
 
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, 'utf8'));
 const writeJson = (filePath, value) => fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
@@ -51,6 +67,20 @@ const asPriceNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : NaN;
 };
+
+try {
+  ensureReadableJson(sourceBookingsPath, 'sourceBookings');
+  ensureReadableJson(targetBookingsPath, 'targetBookings');
+  ensureReadableJson(sourceGroupsPath, 'sourceGroups');
+  ensureReadableJson(targetGroupsPath, 'targetGroups');
+  if (!isDryRun) {
+    ensureWritableTarget(outBookingsPatchPath, 'outBookingsPatch');
+    ensureWritableTarget(outGroupsPatchPath, 'outGroupsPatch');
+  }
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
 
 const sourceBookings = readJson(sourceBookingsPath);
 const targetBookings = readJson(targetBookingsPath);
@@ -121,14 +151,24 @@ for (const [groupId, targetGroup] of Object.entries(targetGroups)) {
   }
 }
 
-writeJson(outBookingsPatchPath, bookingsPatch);
-writeJson(outGroupsPatchPath, groupsPatch);
+if (!isDryRun) {
+  writeJson(outBookingsPatchPath, bookingsPatch);
+  writeJson(outGroupsPatchPath, groupsPatch);
+}
 
-console.log('Restore patch generation complete.');
-console.log(JSON.stringify({
-  outBookingsPatchPath,
-  outGroupsPatchPath,
-  bookingsPatchEntries: Object.keys(bookingsPatch).length,
-  groupsPatchEntries: Object.keys(groupsPatch).length,
-  stats,
-}, null, 2));
+console.log(isDryRun ? 'Dry run complete. No files were written.' : 'Restore patch generation complete.');
+console.log(
+  JSON.stringify(
+    {
+      dryRun: isDryRun,
+      forceOverwrite,
+      outBookingsPatchPath,
+      outGroupsPatchPath,
+      bookingsPatchEntries: Object.keys(bookingsPatch).length,
+      groupsPatchEntries: Object.keys(groupsPatch).length,
+      stats,
+    },
+    null,
+    2
+  )
+);

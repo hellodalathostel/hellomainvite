@@ -2,6 +2,21 @@ $ErrorActionPreference = 'Stop'
 
 $pattern = '(AIza[0-9A-Za-z_-]{35}|VITE_[A-Z0-9_]+=|authorizing via signed-in user|@gmail\.com)'
 
+function Invoke-CheckedCommand {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Title,
+    [Parameter(Mandatory = $true)]
+    [string]$Command
+  )
+
+  Write-Output "--- $Title ---"
+  Invoke-Expression $Command
+  if ($LASTEXITCODE -ne 0) {
+    throw "Step failed: $Title"
+  }
+}
+
 Write-Output '--- Secret scan ---'
 if (Get-Command rg -ErrorAction SilentlyContinue) {
   rg -n --hidden -g '!dist/**' -g '!node_modules/**' -g '!.git/**' $pattern .
@@ -21,3 +36,7 @@ git add -n .
 
 Write-Output '--- Git status with ignored ---'
 git status --short --ignored
+
+Invoke-CheckedCommand -Title 'Typecheck' -Command 'npm run typecheck'
+Invoke-CheckedCommand -Title 'Unit tests' -Command 'npm test'
+Invoke-CheckedCommand -Title 'Production build' -Command 'npm run build'
