@@ -86,6 +86,7 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     const [isApplyingImportPreviewByRoom, setIsApplyingImportPreviewByRoom] = useState<Record<string, boolean>>({});
     const [bookingComConflictsByRoom, setBookingComConflictsByRoom] = useState<Record<string, BookingComConflictRecord[]>>({});
     const [isResolvingConflictById, setIsResolvingConflictById] = useState<Record<string, boolean>>({});
+    const [isResolvingAllConflictsByRoom, setIsResolvingAllConflictsByRoom] = useState<Record<string, boolean>>({});
     const [conflictStatusFilterByRoom, setConflictStatusFilterByRoom] = useState<Record<string, ConflictStatusFilter>>({});
     const resolvedBank = findVietQrBank(propertyInfo.bankCode, propertyInfo.bankName);
     const [bankForm, setBankForm] = useState({
@@ -179,6 +180,31 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
             addToast(`Không thể xử lý conflict: ${String(error)}`, 'error');
         } finally {
             setIsResolvingConflictById((prev) => ({ ...prev, [key]: false }));
+        }
+    };
+
+    const handleResolveFilteredBookingComConflicts = async (roomId: string, conflicts: BookingComConflictRecord[]) => {
+        if (conflicts.length === 0) {
+            addToast('Không có conflict nào trong bộ lọc để xử lý', 'info');
+            return;
+        }
+
+        if (!window.confirm(`Đánh dấu đã xử lý ${conflicts.length} conflict của phòng ${roomId}?`)) {
+            return;
+        }
+
+        setIsResolvingAllConflictsByRoom((prev) => ({ ...prev, [roomId]: true }));
+        try {
+            await Promise.all(
+                conflicts.map((conflict) =>
+                    remove(ref(db, `app_data/external_sync_conflicts/${roomId}/${conflict.id}`))
+                )
+            );
+            addToast(`Đã xử lý ${conflicts.length} conflict của phòng ${roomId}`, 'success');
+        } catch (error) {
+            addToast(`Xử lý hàng loạt thất bại: ${String(error)}`, 'error');
+        } finally {
+            setIsResolvingAllConflictsByRoom((prev) => ({ ...prev, [roomId]: false }));
         }
     };
 
@@ -985,6 +1011,13 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                                                 <option value="CONFIRMED">CONFIRMED</option>
                                                                 <option value="CANCELLED">CANCELLED</option>
                                                             </select>
+                                                            <button
+                                                                onClick={() => handleResolveFilteredBookingComConflicts(room.id, filteredRoomConflicts)}
+                                                                disabled={filteredRoomConflicts.length === 0 || Boolean(isResolvingAllConflictsByRoom[room.id])}
+                                                                className="text-[11px] rounded-md bg-orange-600 text-white px-2 py-1 font-bold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            >
+                                                                {isResolvingAllConflictsByRoom[room.id] ? 'Đang xử lý tất cả...' : 'Đánh dấu tất cả'}
+                                                            </button>
                                                         </div>
 
                                                         {filteredRoomConflicts.slice(0, 8).map((conflict) => (
