@@ -37,18 +37,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return;
           }
 
-          const [{ ref, get, child }, db] = await Promise.all([
+          const [{ ref, get, child, set }, db] = await Promise.all([
             import('firebase/database'),
             getDb(),
           ]);
-          const snapshot = await get(child(ref(db), `users/${currentUser.uid}`));
-          let role: UserRole = 'staff';
+          const userRef = child(ref(db), `users/${currentUser.uid}`);
+          const snapshot = await get(userRef);
+          const fallbackRole: UserRole = currentUser.email === ADMIN_EMAIL ? 'admin' : 'staff';
+          let role: UserRole = fallbackRole;
 
           if (snapshot.exists()) {
-            const userData = snapshot.val() as { role?: UserRole };
-            role = userData.role || 'staff';
+            const userData = snapshot.val() as { role?: string };
+            if (userData.role === 'owner' || userData.role === 'admin' || userData.role === 'staff') {
+              role = userData.role;
+            }
           } else {
-            role = currentUser.email === ADMIN_EMAIL ? 'owner' : 'staff';
+            if (fallbackRole === 'admin') {
+              await set(userRef, {
+                role: 'admin',
+                email: currentUser.email || '',
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              });
+            }
           }
 
           roleCache.current[currentUser.uid] = role;

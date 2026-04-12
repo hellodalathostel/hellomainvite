@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ShoppingBag, Plus, Trash2, Tag, Settings, Bed, ChevronDown, ArrowRightCircle, Clock, Users, Moon, Sun, Download, CreditCard, Link2, FileDown } from 'lucide-react';
 import { onValue, ref, remove } from 'firebase/database';
-import { RoomDefinition, ServiceDefinition, DiscountDefinition, Booking, BeforeInstallPromptEvent, BookingComIcalRoomConfig } from '../types/types';
+import { RoomDefinition, ServiceDefinition, DiscountDefinition, Booking, BeforeInstallPromptEvent, BookingComIcalRoomConfig, UserRole } from '../types/types';
 import { findVietQrBank, VIETQR_BANKS } from '../config/constants';
 import { db } from '../config/database';
+import { auth } from '../config/firebaseConfig';
 import { formatCurrency } from '../utils/utils';
 import { buildBookingComIcalRoomConfigs, countConfiguredBookingComIcalRooms } from '../utils/bookingComIcalConfig';
 import { buildSaveBookingPayloadFromPreview, createImportPreviewHash } from '../utils/bookingComImport';
@@ -47,7 +48,7 @@ const ToggleSettingsMobile: React.FC = () => {
     );
 };
 
-const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) => {
+const SettingsView: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
     const { addToast, openExpenseModal, openBookingModal, isDarkMode, toggleTheme, deferredPrompt, setDeferredPrompt } = useUI();
     const { 
         rooms, masterServices, masterDiscounts, expenses, actions, bookings, propertyInfo
@@ -79,6 +80,7 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     const [newRoom, setNewRoom] = useState<Partial<RoomDefinition>>({ id: '', name: '', price: 0, isVirtual: false });
     const [isSyncingSheets, setIsSyncingSheets] = useState(false);
     const [isSavingBookingIcalConfig, setIsSavingBookingIcalConfig] = useState(false);
+    const [isRunningBookingSyncNow, setIsRunningBookingSyncNow] = useState(false);
     const [importIcalTextByRoom, setImportIcalTextByRoom] = useState<Record<string, string>>({});
     const [importPreviewByRoom, setImportPreviewByRoom] = useState<Record<string, BookingComImportPreviewItem[]>>({});
     const [importPreviewErrorByRoom, setImportPreviewErrorByRoom] = useState<Record<string, string>>({});
@@ -107,6 +109,10 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     const autoExportBaseUrl = useMemo(() => {
         const projectId = (import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined)?.trim() || 'hello-dalat-manager';
         return `https://${projectId}.web.app/ical`;
+    }, []);
+    const bookingSyncNowUrl = useMemo(() => {
+        const projectId = (import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined)?.trim() || 'hello-dalat-manager';
+        return `https://asia-southeast1-${projectId}.cloudfunctions.net/runBookingComSyncNow`;
     }, []);
 
     useEffect(() => {
@@ -474,6 +480,43 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
             addToast(`Lưu cấu hình iCal thất bại: ${String(error)}`, 'error');
         } finally {
             setIsSavingBookingIcalConfig(false);
+        }
+    };
+
+    const handleRunBookingSyncNow = async () => {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            addToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'error');
+            return;
+        }
+
+        setIsRunningBookingSyncNow(true);
+        try {
+            const idToken = await currentUser.getIdToken();
+            const response = await fetch(bookingSyncNowUrl, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${idToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ source: 'settings-manual-trigger' }),
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload?.ok === false) {
+                const errorMessage = payload?.error || `HTTP ${response.status}`;
+                throw new Error(errorMessage);
+            }
+
+            const summary = payload?.summary || {};
+            addToast(
+                `Sync xong: ${summary.roomsProcessed || 0} phòng, +${summary.created || 0} mới, cập nhật ${summary.updated || 0}, conflict ${summary.conflicts || 0}`,
+                'success'
+            );
+        } catch (error) {
+            addToast(`Run Booking Sync Now thất bại: ${String(error)}`, 'error');
+        } finally {
+            setIsRunningBookingSyncNow(false);
         }
     };
 
@@ -1101,8 +1144,15 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                         <FileDown size={16} /> Export tất cả
                                     </button>
                                     <button
+                                        onClick={handleRunBookingSyncNow}
+                                        disabled={isRunningBookingSyncNow}
+                                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold text-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        {isRunningBookingSyncNow ? 'Đang sync...' : 'Run Booking Sync Now'}
+                                    </button>
+                                    <button
                                         onClick={handleSaveBookingComIcalConfig}
-                                        disabled={isSavingBookingIcalConfig}
+                                        disabled={isSavingBookingIcalConfig || isRunningBookingSyncNow}
                                         className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     >
                                         {isSavingBookingIcalConfig ? 'Đang lưu...' : 'Lưu cấu hình'}

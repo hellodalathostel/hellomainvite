@@ -6,13 +6,13 @@ const BookingModal = React.lazy(() => import('./modals/BookingModal'));
 const ExpenseModal = React.lazy(() => import('./modals/ExpenseModal'));
 const InvoiceModal = React.lazy(() => import('./modals/InvoiceModal'));
 const ConfirmationModal = React.lazy(() => import('./modals/ConfirmationModal'));
-import { Booking, Expense, InvoiceData, ConfirmationData } from '../types/types';
+import { Booking, Expense, InvoiceData, ConfirmationData, UserRole } from '../types/types';
 import type { SaveBookingPayload } from '../types/bookingForm';
 import { calculateBill } from '../utils/calculations';
 import { formatDate } from '../utils/utils';
 
 // ModalManager now consumes DataContext directly, no need for props drilling
-const ModalManager: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) => {
+const ModalManager: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
   const { modalState, closeModal, openBookingModal, openInvoiceModal, openConfirmationModal } = useUI();
   const { 
       bookings, rooms, masterServices, masterDiscounts, propertyInfo, zaloTemplate, suggestedGuest, setSuggestedGuest, actions 

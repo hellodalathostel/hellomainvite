@@ -12,6 +12,7 @@ const db = admin.database();
 const REGION = 'asia-southeast1';
 const PRODID = '-//Hello Dalat Hostel//Realtime iCal Feed//VI';
 const IMPORT_SOURCE = 'Booking.com';
+const ADMIN_EMAIL = 'admin@hellodalat.com';
 const DEFAULT_IMPORT_SCHEDULE = 'every 30 minutes';
 const CONFLICTS_PATH = 'app_data/external_sync_conflicts';
 
@@ -619,92 +620,145 @@ exports.roomIcal = onRequest({ region: REGION }, async (req, res) => {
   }
 });
 
+const runBookingComImportJob = async (trigger = 'scheduled') => {
+  const [propertySnap, bookingsSnap, groupsSnap, roomsSnap] = await Promise.all([
+    db.ref('app_data/property_info').get(),
+    db.ref('bookings').get(),
+    db.ref('groups').get(),
+    db.ref('app_data/rooms').get(),
+  ]);
+
+  const propertyInfo = propertySnap.val() || {};
+  const rawBookings = bookingsSnap.val() || {};
+  const rawGroups = groupsSnap.val() || {};
+  const rooms = roomsSnap.val() || {};
+  const roomConfigs = propertyInfo?.externalSync?.bookingComIcal?.rooms || {};
+
+  const configuredRooms = Object.values(roomConfigs).filter((config) => config && config.importEnabled && normalizeText(config.importUrl));
+  if (configuredRooms.length === 0) {
+    logger.info('importBookingComReservations: no enabled Booking.com import rooms configured', { trigger });
+    return { roomsProcessed: 0, created: 0, updated: 0, cancelled: 0, ignored: 0, conflicts: 0, unchanged: 0, failed: 0, trigger };
+  }
+
+  const summary = { roomsProcessed: 0, created: 0, updated: 0, cancelled: 0, ignored: 0, conflicts: 0, unchanged: 0, failed: 0, trigger };
+
+  for (const config of configuredRooms) {
+    const roomId = normalizeText(config.roomId);
+    const roomName = normalizeText(config.roomName || rooms?.[roomId]?.name || roomId);
+    const roomPrice = Number(rooms?.[roomId]?.price) || 0;
+
+    try {
+      const response = await fetch(config.importUrl, {
+        headers: {
+          'User-Agent': 'Hello Dalat Hostel Booking.com iCal Import/1.0',
+          Accept: 'text/calendar,text/plain;q=0.9,*/*;q=0.8',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Fetch failed with ${response.status} ${response.statusText}`);
+      }
+
+      const content = await response.text();
+      const events = parseIcalEvents(content);
+      const hash = createImportHash(events);
+
+      if (config.lastImportHash && config.lastImportHash === hash) {
+        summary.unchanged += 1;
+        await db.ref(`app_data/property_info/externalSync/bookingComIcal/rooms/${roomId}`).update({
+          lastImportAttemptAt: Date.now(),
+          lastImportError: '',
+        });
+        continue;
+      }
+
+      const roomBookings = buildRoomBookings(rawBookings, rawGroups, roomId);
+      const decisions = buildImportDecisions({
+        events,
+        roomId,
+        roomName,
+        roomBookings,
+        lastImportedAt: Number(config.lastImportedAt) || 0,
+      });
+      const { updates, stats } = applyImportDecisions({
+        decisions,
+        roomConfig: { roomId },
+        roomPrice,
+        roomBookings,
+      });
+
+      await db.ref().update(updates);
+      summary.roomsProcessed += 1;
+      summary.created += stats.created;
+      summary.updated += stats.updated;
+      summary.cancelled += stats.cancelled;
+      summary.ignored += stats.ignored;
+      summary.conflicts += stats.conflicts;
+    } catch (error) {
+      summary.failed += 1;
+      logger.error('importBookingComReservations room failed', { roomId, error: error instanceof Error ? error.message : String(error), trigger });
+      await db.ref(`app_data/property_info/externalSync/bookingComIcal/rooms/${roomId}`).update({
+        lastImportAttemptAt: Date.now(),
+        lastImportError: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  logger.info('importBookingComReservations completed', summary);
+  return summary;
+};
+
+const verifyManualSyncRequester = async (req) => {
+  const authHeader = normalizeText(req.headers.authorization);
+  if (!authHeader.toLowerCase().startsWith('bearer ')) {
+    throw Object.assign(new Error('Missing bearer token'), { statusCode: 401 });
+  }
+
+  const idToken = authHeader.slice(7).trim();
+  const decodedToken = await admin.auth().verifyIdToken(idToken);
+  const email = normalizeText(decodedToken.email || '');
+  const roleSnap = await db.ref(`users/${decodedToken.uid}/role`).get();
+  const role = normalizeText(roleSnap.val());
+  const isPrivileged = role === 'owner' || role === 'admin' || email === ADMIN_EMAIL;
+
+  if (!isPrivileged) {
+    throw Object.assign(new Error('Forbidden'), { statusCode: 403 });
+  }
+
+  return { uid: decodedToken.uid, email, role: role || (email === ADMIN_EMAIL ? 'admin' : 'staff') };
+};
+
+exports.runBookingComSyncNow = onRequest({ region: REGION }, async (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  try {
+    const requester = await verifyManualSyncRequester(req);
+    const summary = await runBookingComImportJob('manual');
+    res.status(200).json({ ok: true, requester, summary });
+  } catch (error) {
+    const statusCode = Number(error?.statusCode) || 500;
+    res.status(statusCode).json({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
 exports.importBookingComReservations = onSchedule(
   { region: REGION, schedule: DEFAULT_IMPORT_SCHEDULE, timeZone: 'Asia/Ho_Chi_Minh' },
   async () => {
-    const [propertySnap, bookingsSnap, groupsSnap, roomsSnap] = await Promise.all([
-      db.ref('app_data/property_info').get(),
-      db.ref('bookings').get(),
-      db.ref('groups').get(),
-      db.ref('app_data/rooms').get(),
-    ]);
-
-    const propertyInfo = propertySnap.val() || {};
-    const rawBookings = bookingsSnap.val() || {};
-    const rawGroups = groupsSnap.val() || {};
-    const rooms = roomsSnap.val() || {};
-    const roomConfigs = propertyInfo?.externalSync?.bookingComIcal?.rooms || {};
-
-    const configuredRooms = Object.values(roomConfigs).filter((config) => config && config.importEnabled && normalizeText(config.importUrl));
-    if (configuredRooms.length === 0) {
-      logger.info('importBookingComReservations: no enabled Booking.com import rooms configured');
-      return;
-    }
-
-    const summary = { roomsProcessed: 0, created: 0, updated: 0, cancelled: 0, ignored: 0, conflicts: 0, unchanged: 0, failed: 0 };
-
-    for (const config of configuredRooms) {
-      const roomId = normalizeText(config.roomId);
-      const roomName = normalizeText(config.roomName || rooms?.[roomId]?.name || roomId);
-      const roomPrice = Number(rooms?.[roomId]?.price) || 0;
-
-      try {
-        const response = await fetch(config.importUrl, {
-          headers: {
-            'User-Agent': 'Hello Dalat Hostel Booking.com iCal Import/1.0',
-            Accept: 'text/calendar,text/plain;q=0.9,*/*;q=0.8',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Fetch failed with ${response.status} ${response.statusText}`);
-        }
-
-        const content = await response.text();
-        const events = parseIcalEvents(content);
-        const hash = createImportHash(events);
-
-        if (config.lastImportHash && config.lastImportHash === hash) {
-          summary.unchanged += 1;
-          await db.ref(`app_data/property_info/externalSync/bookingComIcal/rooms/${roomId}`).update({
-            lastImportAttemptAt: Date.now(),
-            lastImportError: '',
-          });
-          continue;
-        }
-
-        const roomBookings = buildRoomBookings(rawBookings, rawGroups, roomId);
-        const decisions = buildImportDecisions({
-          events,
-          roomId,
-          roomName,
-          roomBookings,
-          lastImportedAt: Number(config.lastImportedAt) || 0,
-        });
-        const { updates, stats } = applyImportDecisions({
-          decisions,
-          roomConfig: { roomId },
-          roomPrice,
-          roomBookings,
-        });
-
-        await db.ref().update(updates);
-        summary.roomsProcessed += 1;
-        summary.created += stats.created;
-        summary.updated += stats.updated;
-        summary.cancelled += stats.cancelled;
-        summary.ignored += stats.ignored;
-        summary.conflicts += stats.conflicts;
-      } catch (error) {
-        summary.failed += 1;
-        logger.error('importBookingComReservations room failed', { roomId, error: error instanceof Error ? error.message : String(error) });
-        await db.ref(`app_data/property_info/externalSync/bookingComIcal/rooms/${roomId}`).update({
-          lastImportAttemptAt: Date.now(),
-          lastImportError: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    logger.info('importBookingComReservations completed', summary);
+    await runBookingComImportJob('scheduled');
   }
 );

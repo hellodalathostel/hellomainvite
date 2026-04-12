@@ -219,7 +219,7 @@ export default function BookingModal({
 
               <RoomStaySection form={form} setForm={setForm} rooms={rooms} isGroupMode={isGroupMode && !form.id} groupPrices={groupPrices} setGroupPrices={setGroupPrices} />
               <GuestInfoSection form={form} setForm={setForm} findGuestByPhone={findGuestByPhone} findGuestByName={findGuestByName} suggestedGuest={suggestedGuest} setSuggestedGuest={setSuggestedGuest} syncToGroup={syncToGroup} setSyncToGroup={setSyncToGroup} />
-              <PaymentSection form={form} setForm={setForm} financials={financials} isGroupMode={isGroupMode} canEditPayment={userRole === 'owner'} />
+              <PaymentSection form={form} setForm={setForm} financials={financials} isGroupMode={isGroupMode} canEditPayment={userRole === 'owner' || userRole === 'admin'} />
               <ServicesSection form={form} setForm={setForm} masterServices={masterServices} masterDiscounts={masterDiscounts} />
 
               {form.id && (

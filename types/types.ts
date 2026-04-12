@@ -58,7 +58,7 @@ export interface DiscountDefinition {
   amount: number;
 }
 
-export type UserRole = 'owner' | 'staff';
+export type UserRole = 'owner' | 'admin' | 'staff';
 
 export type AppTab = 'dashboard' | 'calendar' | 'generated' | 'reports' | 'settings';
 
