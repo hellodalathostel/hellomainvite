@@ -18,13 +18,15 @@ interface PaymentSectionProps {
     preTaxTotal: number;
   };
   isGroupMode: boolean;
+  canEditPayment?: boolean;
 }
 
 const PaymentSection: React.FC<PaymentSectionProps> = ({
   form,
   setForm,
   financials,
-  isGroupMode
+  isGroupMode,
+  canEditPayment = true,
 }) => {
   const handleEarlyCheckout = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -94,9 +96,16 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
         <CurrencyInput 
             value={form.paid} 
             onChange={val => setForm({ ...form, paid: val })} 
+            disabled={!canEditPayment}
             className="w-36 bg-white dark:bg-gray-800 px-3 py-1.5 rounded-xl border border-gray-300 dark:border-gray-700 font-bold text-right outline-none focus:border-blue-500 text-blue-800 dark:text-blue-400" 
         />
       </div>
+
+      {!canEditPayment && (
+        <p className="text-[11px] text-amber-600 font-medium">
+          Tài khoản staff chỉ được xem mục thanh toán. Chỉ owner/admin được cập nhật số tiền đã trả.
+        </p>
+      )}
 
       <div className="flex justify-between items-center">
         <span className="text-xs font-black uppercase text-gray-500 tracking-widest flex items-center gap-1">
@@ -104,6 +113,7 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
           <select 
             value={form.paymentMethod} 
             onChange={e => setForm({ ...form, paymentMethod: e.target.value as BookingFormData['paymentMethod'] })} 
+            disabled={!canEditPayment}
             className="bg-transparent font-bold text-gray-800 dark:text-gray-200 outline-none ml-1"
           >
             <option value="cash">Tiền mặt / CK</option>
@@ -115,7 +125,7 @@ const PaymentSection: React.FC<PaymentSectionProps> = ({
 
       <button
         onClick={handleApplyCardServiceFee}
-        disabled={form.paymentMethod !== 'card' || financials.debt <= 0}
+        disabled={!canEditPayment || form.paymentMethod !== 'card' || financials.debt <= 0}
         className="w-full py-2 bg-blue-500 text-white rounded-xl font-bold text-xs hover:bg-blue-600 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Thêm phí quẹt thẻ (4%)

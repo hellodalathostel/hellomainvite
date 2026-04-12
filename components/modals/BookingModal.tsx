@@ -25,7 +25,7 @@ interface BookingModalProps {
   findGuestByName: (name: string) => void;
   suggestedGuest: SuggestedGuest | null;
   setSuggestedGuest: (val: SuggestedGuest | null) => void;
-  onSave: (data: SaveBookingPayload) => void;
+  onSave: (data: SaveBookingPayload) => Promise<void>;
   onDelete: (id: string, isGroup: boolean, groupId?: string) => void;
   onInvoice: (booking: Booking, isGroup: boolean) => void;
   onConfirmation: (booking: Booking, isGroup: boolean) => void;
@@ -219,7 +219,7 @@ export default function BookingModal({
 
               <RoomStaySection form={form} setForm={setForm} rooms={rooms} isGroupMode={isGroupMode && !form.id} groupPrices={groupPrices} setGroupPrices={setGroupPrices} />
               <GuestInfoSection form={form} setForm={setForm} findGuestByPhone={findGuestByPhone} findGuestByName={findGuestByName} suggestedGuest={suggestedGuest} setSuggestedGuest={setSuggestedGuest} syncToGroup={syncToGroup} setSyncToGroup={setSyncToGroup} />
-              <PaymentSection form={form} setForm={setForm} financials={financials} isGroupMode={isGroupMode} />
+              <PaymentSection form={form} setForm={setForm} financials={financials} isGroupMode={isGroupMode} canEditPayment={userRole === 'owner'} />
               <ServicesSection form={form} setForm={setForm} masterServices={masterServices} masterDiscounts={masterDiscounts} />
 
               {form.id && (
@@ -288,7 +288,7 @@ export default function BookingModal({
         {/* Save button */}
         {!isLocked && !confirmDelete && (
             <div className="px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-white dark:bg-slate-950 border-t dark:border-slate-800 shrink-0 z-20">
-            <button onClick={handleSubmit} className="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white rounded-2xl font-black text-sm shadow-lg shadow-blue-600/20 transition-colors">
+            <button onClick={() => { void handleSubmit(); }} className="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white rounded-2xl font-black text-sm shadow-lg shadow-blue-600/20 transition-colors">
               Lưu Booking
             </button>
           </div>

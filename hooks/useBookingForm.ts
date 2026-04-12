@@ -12,7 +12,7 @@ interface UseBookingFormOptions {
   allBookings: Booking[];
   userRole: UserRole;
   checkRoomCollision: (roomId: string, start: string, end: string, ignoreId?: string, isEarly?: boolean, isLate?: boolean) => Booking | undefined;
-  onSave: (data: SaveBookingPayload) => void;
+  onSave: (data: SaveBookingPayload) => Promise<void>;
 }
 
 export function useBookingForm({
@@ -81,7 +81,7 @@ export function useBookingForm({
     return list;
   }, [form.groupId, groupPeers.length, isLocked, form.id]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (isLocked) return;
     const validationError = validateBookingForm(form, isGroupMode);
     if (validationError) { alert(validationError); return; }
@@ -101,14 +101,23 @@ export function useBookingForm({
       return;
     }
 
-    onSave(buildBookingSavePayload(form, {
-      isGroupMode,
-      groupPrices,
-      roomTotal: financials.roomTotal,
-      surcharge: financials.surcharge,
-      grandTotal: financials.grandTotal,
-      syncToGroup,
-    }));
+    try {
+      await onSave(buildBookingSavePayload(form, {
+        isGroupMode,
+        groupPrices,
+        roomTotal: financials.roomTotal,
+        surcharge: financials.surcharge,
+        grandTotal: financials.grandTotal,
+        syncToGroup,
+      }));
+    } catch (error) {
+      const message = String(error || 'Unknown error');
+      if (message.toLowerCase().includes('permission_denied')) {
+        alert('Bạn không có quyền thực hiện thay đổi này. Vui lòng liên hệ chủ tài khoản.');
+        return;
+      }
+      alert(`Lưu booking thất bại: ${message}`);
+    }
   };
 
   return {
