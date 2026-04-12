@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ShoppingBag, Plus, Trash2, Tag, Settings, Bed, ChevronDown, ArrowRightCircle, Clock, Users, Moon, Sun, Download, CreditCard, Link2, FileDown } from 'lucide-react';
-import { onValue, ref } from 'firebase/database';
+import { onValue, ref, remove } from 'firebase/database';
 import { RoomDefinition, ServiceDefinition, DiscountDefinition, Booking, BeforeInstallPromptEvent, BookingComIcalRoomConfig } from '../types/types';
 import { findVietQrBank, VIETQR_BANKS } from '../config/constants';
 import { db } from '../config/database';
@@ -31,6 +31,8 @@ type BookingComConflictRecord = {
     checkOut?: string;
     createdAt?: number;
 };
+
+type ConflictStatusFilter = 'all' | 'CONFIRMED' | 'CANCELLED';
 
 const ToggleSettingsMobile: React.FC = () => {
     const { showSettingsOnMobile, setShowSettingsOnMobile } = useUI();
@@ -83,6 +85,8 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     const [selectedImportPreviewIdsByRoom, setSelectedImportPreviewIdsByRoom] = useState<Record<string, string[]>>({});
     const [isApplyingImportPreviewByRoom, setIsApplyingImportPreviewByRoom] = useState<Record<string, boolean>>({});
     const [bookingComConflictsByRoom, setBookingComConflictsByRoom] = useState<Record<string, BookingComConflictRecord[]>>({});
+    const [isResolvingConflictById, setIsResolvingConflictById] = useState<Record<string, boolean>>({});
+    const [conflictStatusFilterByRoom, setConflictStatusFilterByRoom] = useState<Record<string, ConflictStatusFilter>>({});
     const resolvedBank = findVietQrBank(propertyInfo.bankCode, propertyInfo.bankName);
     const [bankForm, setBankForm] = useState({
         bankCode: resolvedBank?.code || propertyInfo.bankCode || '',
@@ -147,6 +151,35 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     const formatSyncTimestamp = (value?: number) => {
         if (!value) return 'Chưa có';
         return new Date(value).toLocaleString('vi-VN');
+    };
+
+    const handleOpenBookingComConflict = (conflict: BookingComConflictRecord) => {
+        if (!conflict.bookingId) {
+            addToast('Conflict này chưa gắn booking local cụ thể', 'info');
+            return;
+        }
+
+        const booking = bookings.find((item) => item.id === conflict.bookingId);
+        if (!booking) {
+            addToast(`Không tìm thấy booking local ${conflict.bookingId}`, 'error');
+            return;
+        }
+
+        openBookingModal(booking);
+    };
+
+    const handleResolveBookingComConflict = async (roomId: string, conflictId: string) => {
+        const key = `${roomId}__${conflictId}`;
+        setIsResolvingConflictById((prev) => ({ ...prev, [key]: true }));
+
+        try {
+            await remove(ref(db, `app_data/external_sync_conflicts/${roomId}/${conflictId}`));
+            addToast('Đã đánh dấu conflict là đã xử lý', 'success');
+        } catch (error) {
+            addToast(`Không thể xử lý conflict: ${String(error)}`, 'error');
+        } finally {
+            setIsResolvingConflictById((prev) => ({ ...prev, [key]: false }));
+        }
     };
 
     const handleAddRoom = () => {
@@ -684,6 +717,11 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                     const roomConfig = bookingComIcalForm[room.id] || bookingComIcalRooms[room.id];
                                     const previewItems = importPreviewByRoom[room.id] || [];
                                     const roomConflicts = bookingComConflictsByRoom[room.id] || [];
+                                    const currentConflictFilter = conflictStatusFilterByRoom[room.id] || 'all';
+                                    const filteredRoomConflicts = roomConflicts.filter((conflict) => {
+                                        if (currentConflictFilter === 'all') return true;
+                                        return (conflict.status || '').toUpperCase() === currentConflictFilter;
+                                    });
                                     const selectedIds = new Set(selectedImportPreviewIdsByRoom[room.id] || []);
                                     const selectableCount = previewItems.filter((item) => item.action === 'create' || item.action === 'update').length;
                                     const previewCounts = previewItems.reduce(
@@ -931,7 +969,28 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                                     </summary>
 
                                                     <div className="mt-3 space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
-                                                        {roomConflicts.slice(0, 8).map((conflict) => (
+                                                        <div className="sticky top-0 z-10 bg-orange-50/95 dark:bg-orange-950/95 backdrop-blur rounded-md px-2 py-1.5 border border-orange-100 dark:border-orange-900/60 flex items-center justify-between gap-2">
+                                                            <p className="text-[11px] font-medium text-orange-800 dark:text-orange-300">
+                                                                Hiển thị {Math.min(filteredRoomConflicts.length, 8)}/{roomConflicts.length} conflict
+                                                            </p>
+                                                            <select
+                                                                value={currentConflictFilter}
+                                                                onChange={(e) => setConflictStatusFilterByRoom((prev) => ({
+                                                                    ...prev,
+                                                                    [room.id]: e.target.value as ConflictStatusFilter,
+                                                                }))}
+                                                                className="text-[11px] rounded-md border border-orange-200 bg-white text-gray-800 px-2 py-1 outline-none dark:bg-gray-800 dark:border-orange-900/60 dark:text-gray-100"
+                                                            >
+                                                                <option value="all">Tất cả trạng thái</option>
+                                                                <option value="CONFIRMED">CONFIRMED</option>
+                                                                <option value="CANCELLED">CANCELLED</option>
+                                                            </select>
+                                                        </div>
+
+                                                        {filteredRoomConflicts.slice(0, 8).map((conflict) => (
+                                                            (() => {
+                                                                const resolveKey = `${room.id}__${conflict.id}`;
+                                                                return (
                                                             <div
                                                                 key={`${room.id}-${conflict.id}`}
                                                                 className="rounded-lg border border-orange-200 dark:border-orange-900/60 bg-white dark:bg-gray-900 px-3 py-2 text-xs"
@@ -954,8 +1013,33 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
                                                                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
                                                                     Tạo lúc: {formatSyncTimestamp(conflict.createdAt)}
                                                                 </p>
+
+                                                                <div className="mt-2 flex items-center justify-end gap-2">
+                                                                    <button
+                                                                        onClick={() => handleOpenBookingComConflict(conflict)}
+                                                                        disabled={!conflict.bookingId}
+                                                                        className="px-2.5 py-1 bg-white text-orange-800 rounded-md border border-orange-200 text-[11px] font-bold hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-orange-300 dark:border-orange-900/60 dark:hover:bg-orange-950/40"
+                                                                    >
+                                                                        Mở booking
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleResolveBookingComConflict(room.id, conflict.id)}
+                                                                        disabled={Boolean(isResolvingConflictById[resolveKey])}
+                                                                        className="px-2.5 py-1 bg-orange-600 text-white rounded-md text-[11px] font-bold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                    >
+                                                                        {isResolvingConflictById[resolveKey] ? 'Đang xử lý...' : 'Đánh dấu đã xử lý'}
+                                                                    </button>
+                                                                </div>
                                                             </div>
+                                                                );
+                                                            })()
                                                         ))}
+
+                                                        {filteredRoomConflicts.length === 0 && (
+                                                            <div className="rounded-lg border border-orange-200 dark:border-orange-900/60 bg-white dark:bg-gray-900 px-3 py-2 text-xs text-gray-600 dark:text-gray-300">
+                                                                Không có conflict nào khớp bộ lọc hiện tại.
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </details>
                                             )}
