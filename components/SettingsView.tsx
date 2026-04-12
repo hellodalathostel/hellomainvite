@@ -124,6 +124,11 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
     }, [bookingComIcalRooms]);
 
     useEffect(() => {
+        if (userRole !== 'owner') {
+            setBookingComConflictsByRoom({});
+            return;
+        }
+
         const unsubscribe = onValue(ref(db, 'app_data/external_sync_conflicts'), (snapshot) => {
             const raw = snapshot.val() as Record<string, Record<string, BookingComConflictRecord>> | null;
             if (!raw || typeof raw !== 'object') {
@@ -144,10 +149,13 @@ const SettingsView: React.FC<{ userRole: 'owner' | 'staff' }> = ({ userRole }) =
             });
 
             setBookingComConflictsByRoom(next);
+        }, (error) => {
+            console.warn('Error loading Booking.com conflicts:', error);
+            setBookingComConflictsByRoom({});
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [userRole]);
 
     const formatSyncTimestamp = (value?: number) => {
         if (!value) return 'Chưa có';

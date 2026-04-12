@@ -19,7 +19,7 @@ test('creates default booking.com iCal room config from room definition', () => 
   assert.deepEqual(config, {
     roomId: '101',
     roomName: '101 - Family',
-    importUrl: '',
+    importUrl: 'https://ical.booking.com/v1/export?t=b1ab231c-2f85-4ab0-9f19-df6bf40945f7',
     exportUrl: '',
     importEnabled: false,
     exportEnabled: false,
